@@ -71,7 +71,7 @@ export class TransformService {
       dragOffset.x = position.x - graphic.x
       dragOffset.y = position.y - graphic.y
       graphic.cursor = 'grabbing'
-      
+      console.log('选择了元素，开始拖拽')
       event.stopPropagation()
 
       // 在stage上添加全局监听

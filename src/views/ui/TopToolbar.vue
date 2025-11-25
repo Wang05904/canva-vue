@@ -46,16 +46,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed } from 'vue'
+import { useCanvasStore, type ToolType } from '@/stores/canvas'
 
-// 定义工具类型
-type ToolType = 'select' | 'hand' | 'draw' | 'rectangle' | 'circle' | 'editor'  
-
-const currentTool = ref<ToolType>('select')
+const canvasStore = useCanvasStore()
+const currentTool = computed(() => canvasStore.currentTool)
 
 const setTool = (tool: ToolType) => {
-  currentTool.value = tool
-  // 这里后续会连接到 store 或触发事件？？？
+  canvasStore.setTool(tool)
   console.log('Tool selected:', tool)
 }
 </script>
