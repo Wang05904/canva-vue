@@ -17,11 +17,13 @@ import { Application, Graphics, FederatedPointerEvent } from 'pixi.js'
 import { TransformService } from '@/services/elements/TransformService'
 import { useCanvasStore } from '@/stores/canvas'
 import { useElementsStore } from '@/stores/elements'
+import { useSelectionStore } from '@/stores/selection'
 
 const container = ref<HTMLDivElement | null>(null)
 const transformService = new TransformService()
 const canvasStore = useCanvasStore()
 const elementsStore = useElementsStore()
+const selectionStore = useSelectionStore()
 
 // 初始化加载已有元素
 elementsStore.loadFromLocal()
@@ -91,7 +93,7 @@ onMounted(async () => {
     }
   })
 
-  // 点击事件 - 创建元素
+  // 点击事件 - 创建元素或取消选中
   app.stage.on('pointerdown', (event: FederatedPointerEvent) => {
     const currentTool = canvasStore.currentTool
     const mouseX = event.global.x
@@ -102,14 +104,22 @@ onMounted(async () => {
       createRectangle(app, mouseX, mouseY)
     } else if (currentTool === 'circle') {
       createCircle(app, mouseX, mouseY)
+    } else if (currentTool === 'select') {
+      // 点击空白区域取消选中
+      selectionStore.deselect()
     }
   })
 
   // 渲染已有的元素 （store和view层的渲染接口？？是这个？？）
   renderExistingElements(app)
 
-  // 监听元素变化，重新渲染
-  watch(() => elementsStore.elements.length, () => {
+  // 监听元素变化，重新渲染（深度监听以捕获属性变化）
+  watch(() => elementsStore.elements, () => {
+    renderExistingElements(app)
+  }, { deep: true })
+
+  // 监听选中状态变化，重新渲染
+  watch(() => selectionStore.selectedId, () => {
     renderExistingElements(app)
   })
 })
@@ -161,7 +171,7 @@ function renderExistingElements(app: Application) {
       child.destroy()
     }
   })
-
+  console.log('清除画布，重新渲染元素')
   // 根据store中的元素数据渲染图形
   elementsStore.elements.forEach(element => {
     const graphic = new Graphics()
@@ -177,6 +187,14 @@ function renderExistingElements(app: Application) {
         graphic.rect(0, 0, element.width, element.height)
       }
       graphic.fill(element.fill || '#000000')
+      
+      // 添加边框
+      if (element.borderWidth && element.borderWidth > 0) {
+        graphic.stroke({
+          width: element.borderWidth,
+          color: element.borderColor || '#000000'
+        })
+      }
     }
 
     graphic.x = element.x
@@ -185,10 +203,32 @@ function renderExistingElements(app: Application) {
       graphic.rotation = (element.rotation * Math.PI) / 180
     }
 
+    // 启用交互
+    graphic.eventMode = 'static'
+    graphic.cursor = 'pointer'
+
     app.stage.addChild(graphic)
 
-    // 添加拖拽功能
-    transformService.makeDraggable(graphic)
+    // 点击选中元素
+    graphic.on('pointerdown', (event: FederatedPointerEvent) => {
+      if (canvasStore.currentTool === 'select') {
+        event.stopPropagation()
+        selectionStore.select(element.id)
+        console.log('选中元素:', element.id)
+      }
+    })
+
+    // 添加拖拽功能，并在拖拽结束时更新store
+    transformService.makeDraggable(
+      graphic,
+      undefined, // onDragStart
+      undefined, // onDragMove
+      (x: number, y: number) => {
+        // 拖拽结束时更新store中的元素位置
+        elementsStore.updateElement(element.id, { x, y })
+        console.log(`✅ 更新元素位置到 store: (${x}, ${y})`)
+      }
+    )
   })
 }
 </script>

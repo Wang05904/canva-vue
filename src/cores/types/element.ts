@@ -12,4 +12,6 @@ export interface Element {
   height: number
   fill?: string
   rotation?: number
+  borderWidth?: number
+  borderColor?: string
 }
