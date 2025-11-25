@@ -7,50 +7,70 @@ View层 - 画布容器组件
 3. 协调子组件的渲染顺序
 -->
 <template>
-  <div class="pixi-canvas">
-    <!-- 画布内容 -->
-    <canvas ref="canvas"></canvas>
-  </div>
+  <div ref="container" class="pixi-canvas"></div>
 </template>
 
-<script lang="ts">
-import { defineComponent, onMounted, ref } from 'vue'
+<script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import { Application, Graphics } from 'pixi.js'
+import { TransformService } from '@/services/elements/TransformService'
 
-export default defineComponent({
-  name: 'PixiCanvas',
-  setup() {
-    const canvas = ref<HTMLCanvasElement | null>(null)
+const container = ref<HTMLDivElement | null>(null)
+const transformService = new TransformService()
 
-    onMounted(() => {
-      if (canvas.value) {
-        // 初始化画布
-        const ctx = canvas.value.getContext('2d')
-        if (ctx) {
-          ctx.fillStyle = '#ffffff'
-          ctx.fillRect(0, 0, canvas.value.width, canvas.value.height)
-        }
-      }
-    })
+onMounted(async () => {
+  if (!container.value) return
 
-    return {
-      canvas
-    }
-  }
+  // 创建Pixi应用
+  const app = new Application()
+  await app.init({
+    background: '#ffffff',
+    resizeTo: container.value,
+    antialias: true
+  })
+
+  // 将canvas添加到容器
+  container.value.appendChild(app.canvas)
+
+  // 启用stage交互
+  app.stage.eventMode = 'static'
+  // 设置画布能的点击区域为整个屏幕大小，确保能够接收交互事件
+  app.stage.hitArea = app.screen
+
+  // 创建矩形（写死）
+  // todo（这里要调用sevice创建？然后保存到sotre？）
+  const rectangle = new Graphics()
+  rectangle.rect(0, 0, 200, 150)
+  rectangle.fill('#3498db')
+  rectangle.x = 100
+  rectangle.y = 100
+  rectangle.zIndex = 1
+
+  // 创建圆形
+  const circle = new Graphics()
+  circle.circle(0, 0, 75)
+  circle.fill('#ff0000')
+  circle.x = 400
+  circle.y = 300
+
+  // 添加到画布
+  app.stage.addChild(rectangle)
+  app.stage.addChild(circle)
+
+  // 使用TransformService添加拖拽功能（在添加到stage之后）
+  transformService.makeDraggable(rectangle)
+  transformService.makeDraggable(circle)
 })
 </script>
 
 <style scoped>
 .pixi-canvas {
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   background-color: #f5f5f5;
   overflow: hidden;
-}
-
-.pixi-canvas canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
 }
 </style>

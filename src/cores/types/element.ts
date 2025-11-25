@@ -10,4 +10,6 @@ export interface Element {
   y: number
   width: number
   height: number
+  fill?: string
+  rotation?: number
 }
