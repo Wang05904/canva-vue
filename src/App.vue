@@ -2,6 +2,7 @@
 import PixiCanvas from './views/canvas/PixiCanvas.vue'
 import TopToolbar from './views/ui/TopToolbar.vue'
 import FloatingToolbar from './views/ui/FloatingToolbar.vue'
+import SelectionOverlay from './views/overlays/SelectionOverlay.vue'
 </script>
 
 <template>
@@ -9,6 +10,7 @@ import FloatingToolbar from './views/ui/FloatingToolbar.vue'
     <TopToolbar />
     <FloatingToolbar />
     <PixiCanvas />
+    <SelectionOverlay />
   </div>
 </template>
 

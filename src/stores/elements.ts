@@ -117,6 +117,50 @@ export const useElementsStore = defineStore('elements', {
       this.saveToLocal()
     },
 
+    /**
+     * 批量移动元素（多选拖拽）
+     * @param ids 要移动元素的id
+     * @param dx 水平移动距离
+     * @param dy 垂直移动距离
+     */
+    moveElements(ids: string[], dx: number, dy: number) {
+      ids.forEach(id => {
+        const el = this.elements.find((e) => e.id === id)
+        if (el) {
+          el.x += dx
+          el.y += dy
+        }
+      })
+      this.saveToLocal()
+    },
+
+    /**
+     *  获取框选区域内的元素ID列表
+     * @param boxX 边框起始X坐标
+     * @param boxY 边框起始Y坐标
+     * @param boxWidth 边框宽度
+     * @param boxHeight 边框高度
+     * @returns 元素ID列表
+     */
+    getElementsInBox(boxX: number, boxY: number, boxWidth: number, boxHeight: number): string[] {
+      return this.elements
+        .filter(el => {
+          // 检查元素是否与框选区域相交
+          const elRight = el.x + el.width
+          const elBottom = el.y + el.height
+          const boxRight = boxX + boxWidth
+          const boxBottom = boxY + boxHeight
+
+          return !(
+            el.x > boxRight ||
+            elRight < boxX ||
+            el.y > boxBottom ||
+            elBottom < boxY
+          )
+        })
+        .map(el => el.id)
+    },
+
     /** 删除元素 */
     removeElement(id: string) {
       this.elements = this.elements.filter((el) => el.id !== id)
