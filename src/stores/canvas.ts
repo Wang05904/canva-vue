@@ -11,7 +11,7 @@ export const useCanvasStore = defineStore('canvas', {
     offsetY: 0,
     currentTool: 'select' as ToolType
   }),
-  
+
   actions: {
     setTool(tool: ToolType) {
       this.currentTool = tool

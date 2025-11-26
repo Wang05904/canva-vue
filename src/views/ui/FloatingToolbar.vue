@@ -7,9 +7,8 @@
   >
     <!-- 背景色 -->
     <div class="tool-btn" title="背景颜色" @click="toggleFillPicker">
-      <div class="color-preview" :style="{ backgroundColor: selectedElement.fill || '#4A90E2' }"></div>
+      <div class="color-preview" :style="{ backgroundColor: (selectedElement.type === 'shape' ? selectedElement.fillColor : '#4A90E2') }"></div>
     </div>
-    
     <!-- 背景色选择面板 -->
     <div v-if="showFillPicker" class="color-picker-panel" @click.stop>
       <div class="preset-colors">
@@ -18,14 +17,14 @@
           :key="color"
           class="preset-color-item"
           :style="{ backgroundColor: color }"
-          :class="{ active: selectedElement.fill === color }"
+          :class="{ active: selectedElement.type === 'shape' && selectedElement.fillColor === color }"
           @click="updateFill(color)"
         ></div>
       </div>
       <div class="custom-color-section">
         <input
           type="color"
-          :value="selectedElement.fill || '#4A90E2'"
+          :value="selectedElement.type === 'shape' ? selectedElement.fillColor : '#4A90E2'"
           @input="updateFillCustom"
           class="custom-color-input"
         />
@@ -42,9 +41,9 @@
 
     <!-- 边框宽度选择面板 -->
     <div v-if="showBorderWidthPicker" class="width-picker-panel" @click.stop>
-      <div 
+      <div
         class="width-option"
-        :class="{ active: (selectedElement.borderWidth || 0) === 0 }"
+        :class="{ active: (selectedElement.type === 'shape' ? selectedElement.strokeWidth : 0) === 0 }"
         @click="updateBorderWidth(0)"
       >
         <span class="width-label">无</span>
@@ -53,7 +52,7 @@
         v-for="opt in borderWidthOptions"
         :key="opt.value"
         class="width-option"
-        :class="{ active: selectedElement.borderWidth === opt.value }"
+        :class="{ active: selectedElement.type === 'shape' && selectedElement.strokeWidth === opt.value }"
         @click="updateBorderWidth(opt.value)"
       >
         <span class="width-label">{{ opt.label }}</span>
@@ -62,15 +61,15 @@
     </div>
 
     <!-- 边框颜色 -->
-    <template v-if="(selectedElement.borderWidth || 0) > 0">
+    <template v-if="selectedElement.type === 'shape' && selectedElement.strokeWidth > 0">
       <div class="divider"></div>
       <div class="tool-btn" title="边框颜色" @click="toggleBorderColorPicker">
-        <div 
-          class="color-preview border-mode" 
-          :style="{ borderColor: selectedElement.borderColor || '#000000' }"
+        <div
+          class="color-preview border-mode"
+          :style="{ borderColor: selectedElement.type === 'shape' ? selectedElement.strokeColor : '#000000' }"
         ></div>
       </div>
-      
+
       <!-- 边框色选择面板 -->
       <div v-if="showBorderColorPicker" class="color-picker-panel" @click.stop>
         <div class="preset-colors">
@@ -79,14 +78,14 @@
             :key="color"
             class="preset-color-item border-preview"
             :style="{ borderColor: color }"
-            :class="{ active: selectedElement.borderColor === color }"
+            :class="{ active: selectedElement.type === 'shape' && selectedElement.strokeColor === color }"
             @click="updateBorderColor(color)"
           ></div>
         </div>
         <div class="custom-color-section">
           <input
             type="color"
-            :value="selectedElement.borderColor || '#000000'"
+            :value="selectedElement.type === 'shape' ? selectedElement.strokeColor : '#000000'"
             @input="updateBorderColorCustom"
             class="custom-color-input"
           />
@@ -98,9 +97,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue'
-import { useSelectionStore } from '@/stores/selection'
 import { useElementsStore } from '@/stores/elements'
+import { useSelectionStore } from '@/stores/selection'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 const selectionStore = useSelectionStore()
 const elementsStore = useElementsStore()
@@ -126,18 +125,18 @@ const borderWidthOptions = [
 
 // 获取选中的元素
 const selectedElement = computed(() => {
-  if (!selectionStore.selectedId) return null
-  return elementsStore.getElementById(selectionStore.selectedId)
+  if (!selectionStore.firstSelectedId) return null
+  return elementsStore.getElementById(selectionStore.firstSelectedId)
 })
 
 // 计算工具栏位置（显示在元素上方）
 const toolbarStyle = computed(() => {
   if (!selectedElement.value) return {}
-  
+
   const element = selectedElement.value
   const toolbarHeight = 44
   const padding = 12
-  
+
   return {
     left: `${element.x + element.width / 2}px`,
     top: `${element.y - toolbarHeight - padding}px`,
@@ -168,9 +167,9 @@ const toggleBorderWidthPicker = () => {
 
 // 更新背景色 (预设颜色)
 const updateFill = (color: string) => {
-  if (selectedElement.value) {
-    elementsStore.updateElement(selectedElement.value.id, {
-      fill: color
+  if (selectedElement.value && selectedElement.value.type === 'shape') {
+    elementsStore.updateShapeElementProperties(selectedElement.value.id, {
+      fillColor: color
     })
   }
   showFillPicker.value = false
@@ -179,18 +178,18 @@ const updateFill = (color: string) => {
 // 更新背景色  (自定义颜色)
 const updateFillCustom = (event: Event) => {
   const target = event.target as HTMLInputElement
-  if (selectedElement.value) {
-    elementsStore.updateElement(selectedElement.value.id, {
-      fill: target.value
+  if (selectedElement.value && selectedElement.value.type === 'shape') {
+    elementsStore.updateShapeElementProperties(selectedElement.value.id, {
+      fillColor: target.value
     })
   }
 }
 
 // 更新边框宽度
 const updateBorderWidth = (width: number) => {
-  if (selectedElement.value) {
-    elementsStore.updateElement(selectedElement.value.id, {
-      borderWidth: width
+  if (selectedElement.value && selectedElement.value.type === 'shape') {
+    elementsStore.updateShapeElementProperties(selectedElement.value.id, {
+      strokeWidth: width
     })
   }
   showBorderWidthPicker.value = false
@@ -198,9 +197,9 @@ const updateBorderWidth = (width: number) => {
 
 // 更新边框颜色（预设颜色）
 const updateBorderColor = (color: string) => {
-  if (selectedElement.value) {
-    elementsStore.updateElement(selectedElement.value.id, {
-      borderColor: color
+  if (selectedElement.value && selectedElement.value.type === 'shape') {
+    elementsStore.updateShapeElementProperties(selectedElement.value.id, {
+      strokeColor: color
     })
   }
   showBorderColorPicker.value = false
@@ -209,9 +208,9 @@ const updateBorderColor = (color: string) => {
 // 更新边框颜色（自定义颜色）
 const updateBorderColorCustom = (event: Event) => {
   const target = event.target as HTMLInputElement
-  if (selectedElement.value) {
-    elementsStore.updateElement(selectedElement.value.id, {
-      borderColor: target.value
+  if (selectedElement.value && selectedElement.value.type === 'shape') {
+    elementsStore.updateShapeElementProperties(selectedElement.value.id, {
+      strokeColor: target.value
     })
   }
 }

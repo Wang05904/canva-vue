@@ -38,9 +38,9 @@
           <circle cx="12" cy="12" r="10"></circle>
         </svg>
       </button>
-      <button class="tool-btn"  :class="{active: currentTool === 'editor'}" @click="setTool('editor')" title="编辑工具 (E)">
+      <!-- <button class="tool-btn"  :class="{active: currentTool === 'editor'}" @click="setTool('editor')" title="编辑工具 (E)">
         <svg t="1764034124762" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="4623" width="32" height="32"><path d="M792.149333 289.557333V157.696a8.256 8.256 0 0 0-8.234666-8.256H223.424a8.256 8.256 0 0 0-8.234667 8.256v131.861333c0 4.544 3.690667 8.256 8.234667 8.256h57.706667a8.256 8.256 0 0 0 8.234666-8.256v-65.92h173.098667v576.96h-94.805333a8.256 8.256 0 0 0-8.234667 8.234667v57.706667c0 4.522667 3.712 8.234667 8.234667 8.234666h272a8.256 8.256 0 0 0 8.256-8.234666v-57.706667a8.256 8.256 0 0 0-8.256-8.234667h-94.784V223.637333h173.098666v65.92c0 4.544 3.712 8.256 8.234667 8.256h57.706667a8.256 8.256 0 0 0 8.234666-8.256z" fill="#000000" p-id="4624"></path></svg>
-      </button>
+      </button> -->
     </div>
   </div>
 </template>

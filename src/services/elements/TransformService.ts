@@ -35,12 +35,11 @@ export class TransformService {
      * @param event - 指针事件对象
      */
     const onPointerMove = (event: FederatedPointerEvent) => {
-      if (dragging) {
+      if (dragging && graphic && !graphic.destroyed) {
         const position = event.global
         graphic.x = position.x - dragOffset.x
         graphic.y = position.y - dragOffset.y
         onDragMove?.(graphic.x, graphic.y)
-        console.log(`Dragging to (${graphic.x}, ${graphic.y})`)
       }
     }
     
@@ -50,28 +49,31 @@ export class TransformService {
     const onPointerUp = () => {
       if (dragging) {
         dragging = false
-        graphic.cursor = 'pointer'
         
-        // 移除全局事件监听
-        const stage = graphic.parent
+        // 移除全局事件监听（必须先移除，防止内存泄露）
+        const stage = graphic?.parent
         if (stage) {
           stage.off('pointermove', onPointerMove)
           stage.off('pointerup', onPointerUp)
           stage.off('pointerupoutside', onPointerUp)
         }
         
-        onDragEnd?.(graphic.x, graphic.y)
+        if (graphic && !graphic.destroyed) {
+          graphic.cursor = 'pointer'
+          onDragEnd?.(graphic.x, graphic.y)
+        }
       }
     }
 
     // 鼠标按下 - 开始拖拽
     graphic.on('pointerdown', (event) => {
+      if (!graphic || graphic.destroyed) return
+      
       dragging = true
       const position = event.global
       dragOffset.x = position.x - graphic.x
       dragOffset.y = position.y - graphic.y
       graphic.cursor = 'grabbing'
-      console.log('选择了元素，开始拖拽')
       event.stopPropagation()
 
       // 在stage上添加全局监听

@@ -18,12 +18,16 @@ import { TransformService } from '@/services/elements/TransformService'
 import { useCanvasStore } from '@/stores/canvas'
 import { useElementsStore } from '@/stores/elements'
 import { useSelectionStore } from '@/stores/selection'
+import type { AnyElement } from '@/cores/types/element'
 
 const container = ref<HTMLDivElement | null>(null)
 const transformService = new TransformService()
 const canvasStore = useCanvasStore()
 const elementsStore = useElementsStore()
 const selectionStore = useSelectionStore()
+
+// 存储元素ID到graphic的映射
+const graphicMap = new Map<string, Graphics>()
 
 // 初始化加载已有元素
 elementsStore.loadFromLocal()
@@ -49,7 +53,7 @@ onMounted(async () => {
   // 预览图形对象
   let previewShape: Graphics | null = null
 
-  // 鼠标移动事件 - 显示预览
+  // 鼠标移动事件
   app.stage.on('pointermove', (event: FederatedPointerEvent) => {
     const currentTool = canvasStore.currentTool
 
@@ -174,73 +178,101 @@ function createCircle(app: Application, x: number, y: number) {
   canvasStore.setTool('select')
 }
 
-// 渲染元素 store和view层的渲染接口？？
+// 绘制形状到 graphic
+function drawShape(graphic: Graphics, element: AnyElement) {
+  graphic.clear()
+  
+  if (element.type === 'shape') {
+    if (element.width === element.height) {
+      // 圆形
+      const radius = element.width / 2
+      graphic.circle(radius, radius, radius)
+    } else {
+      // 矩形
+      graphic.rect(0, 0, element.width, element.height)
+    }
+    graphic.fill(element.fillColor || '#000000')
+    
+    // 添加边框
+    if (element.strokeWidth && element.strokeWidth > 0) {
+      graphic.stroke({
+        width: element.strokeWidth,
+        color: element.strokeColor || '#000000'
+      })
+    }
+  }
+}
+
+// 渲染元素
 function renderExistingElements(app: Application) {
-  // 清除所有现有的元素图形（除了预览）
-  app.stage.children.forEach(child => {
-    if (child instanceof Graphics && child.alpha === 1) {
-      app.stage.removeChild(child)
-      child.destroy()
+  // 获取当前所有元素ID
+  const currentElementIds = new Set(elementsStore.elements.map(el => el.id))
+  
+  // 删除不再存在的元素
+  graphicMap.forEach((graphic, id) => {
+    if (!currentElementIds.has(id)) {
+      // 先移除事件监听器，再销毁
+      graphic.removeAllListeners()
+      app.stage.removeChild(graphic)
+      graphic.destroy()
+      graphicMap.delete(id)
+      console.log('删除元素:', id)
     }
   })
-  console.log('清除画布，重新渲染元素')
-  // 根据store中的元素数据渲染图形
+  
+  // 渲染或更新元素
   elementsStore.elements.forEach(element => {
-    const graphic = new Graphics()
-
-    if (element.type === 'shape') {
-      // 判断是矩形还是圆形
-      if (element.width === element.height) {
-        // 圆形
-        const radius = element.width / 2
-        graphic.circle(radius, radius, radius)
-      } else {
-        // 矩形
-        graphic.rect(0, 0, element.width, element.height)
-      }
-      graphic.fill(element.fillColor || '#000000')
-
-      // 添加边框
-      if (element.strokeWidth && element.strokeWidth > 0) {
-        graphic.stroke({
-          width: element.strokeWidth,
-          color: element.strokeColor || '#000000'
-        })
-      }
+    let graphic = graphicMap.get(element.id)
+    
+    if (graphic) {
+      // 已存在，只更新样式和位置
+      drawShape(graphic, element)
+      graphic.x = element.x
+      graphic.y = element.y
+      console.log('更新元素:', element.id, 'x:', element.x, 'y:', element.y)
+    } else {
+      // 不存在，创建新的
+      graphic = new Graphics()
+      drawShape(graphic, element)
+      graphic.x = element.x
+      graphic.y = element.y
+      
+      // 启用交互
+      graphic.eventMode = 'static'
+      graphic.cursor = 'pointer'
+      
+      app.stage.addChild(graphic)
+      graphicMap.set(element.id, graphic)
+      
+      console.log('创建新元素:', element.id, 'x:', element.x, 'y:', element.y)
+      
+      // 点击选中元素
+      graphic.on('pointerdown', (event: FederatedPointerEvent) => {
+        if (canvasStore.currentTool === 'select') {
+          event.stopPropagation()
+          selectionStore.selectElement(element.id)
+          console.log('选中元素:', element.id)
+        }
+      })
+      
+      // 添加拖拽功能（只绑定一次）
+      transformService.makeDraggable(
+        graphic,
+        () => {
+          console.log('🎯 开始拖拽:', element.id)
+        },
+        undefined, // onDragMove
+        (x: number, y: number) => {
+          // 拖拽结束时更新store
+          const oldX = element.x
+          const oldY = element.y
+          const dx = x - oldX
+          const dy = y - oldY
+          elementsStore.moveElement(element.id, dx, dy)
+          console.log(`✅ 拖拽结束: 从(${oldX}, ${oldY})移动(${dx}, ${dy})到(${x}, ${y})`)
+        }
+      )
     }
-
-    graphic.x = element.x
-    graphic.y = element.y
-    if (element.rotation) {
-      graphic.rotation = (element.rotation * Math.PI) / 180
-    }
-
-    // 启用交互
-    graphic.eventMode = 'static'
-    graphic.cursor = 'pointer'
-
-    app.stage.addChild(graphic)
-
-    // 点击选中元素
-    graphic.on('pointerdown', (event: FederatedPointerEvent) => {
-      if (canvasStore.currentTool === 'select') {
-        event.stopPropagation()
-        selectionStore.selectElement(element.id)
-        console.log('选中元素:', element.id)
-      }
-    })
-
-    // 添加拖拽功能，并在拖拽结束时更新store
-    transformService.makeDraggable(
-      graphic,
-      undefined, // onDragStart
-      undefined, // onDragMove
-      (x: number, y: number) => {
-        // 拖拽结束时更新store中的元素位置
-        elementsStore.moveElement(element.id,  x, y )
-        console.log(`✅ 更新元素位置到 store: (${x}, ${y})`)
-      }
-    )
   })
 }
 </script>
