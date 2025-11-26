@@ -29,56 +29,67 @@ export const useElementsStore = defineStore('elements', {
     saveToLocal() {
       storage.set(STORAGE_KEY, this.elements)
     },
-
+    /** 生成唯一ID */
+    generateId(): string {
+      return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+    },
     /** 添加元素 */
-    addElement(payload: Omit<AnyElement, 'id'>) {
-      // 兼容环境没有 crypto.randomUUID 的场景
-      const id =
-        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-          ? crypto.randomUUID()
-          : `${Date.now()}_${Math.floor(Math.random() * 100000)}`
-      // 根据 payload 的 type 创建不同类型的元素
-      let newElement: AnyElement;
-      switch (payload.type) {
-        case 'shape':
-          newElement = {
-            ...payload as Omit<ShapeElement, 'id'>,
-            id,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-          } as ShapeElement;
-          break;
-        case 'image':
-          newElement = {
-            ...payload as Omit<ImageElement, 'id'>,
-            id,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-          } as ImageElement;
-          break;
-        case 'text':
-          newElement = {
-            ...payload as Omit<TextElement, 'id'>,
-            id,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-          } as TextElement;
-          break;
-        case 'group':
-          newElement = {
-            ...payload as Omit<GroupElement, 'id'>,
-            id,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-          } as GroupElement;
-          break;
-        default:
-          throw new Error(`Unknown element type: ${payload.type}`);
-      }
-
-      this.elements.push(newElement)
-      this.saveToLocal()
-      return id
+    addShape(payload: Omit<ShapeElement, 'id'| 'type'|'createdAt'| 'updatedAt'>): string {
+      const id = this.generateId();
+      const newElement: ShapeElement = {
+        ...payload,
+        id,
+        type: 'shape',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      this.elements.push(newElement);
+      this.saveToLocal();
+      return id;
+    },
+    // 创建图像元素
+    addImage(payload: Omit<ImageElement, 'id'| 'type'|'createdAt'| 'updatedAt'>): string {
+      const id = this.generateId();
+      const newElement: ImageElement = {
+        ...payload,
+        id,
+        type: 'image',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      this.elements.push(newElement);
+      this.saveToLocal();
+      return id;
+    },
+    // 创建文本元素
+    addText(payload: Omit<TextElement, 'id'| 'type'|'createdAt'| 'updatedAt'>): string {
+      const id = this.generateId();
+      const newElement: TextElement = {
+        ...payload,
+        id,
+        type: 'text',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      this.elements.push(newElement);
+      this.saveToLocal();
+      return id;
+    },
+    // 创建组合元素
+    addGroup(payload: Omit<GroupElement, 'id'| 'type'|'createdAt'| 'updatedAt'>): string {
+      const id = this.generateId();
+      const newElement: GroupElement = {
+        ...payload,
+        id,
+        type: 'group',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      this.elements.push(newElement);
+      this.saveToLocal();
+      return id;
     },
 
     /** 更新元素内容 */

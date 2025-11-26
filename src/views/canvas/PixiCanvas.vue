@@ -1,4 +1,4 @@
-<!-- 
+<!--
 View层 - 画布容器组件
 职责：提供PIXI渲染引擎的容器，负责图形、图片、文本的实际绘制
 解决的问题：
@@ -52,7 +52,7 @@ onMounted(async () => {
   // 鼠标移动事件 - 显示预览
   app.stage.on('pointermove', (event: FederatedPointerEvent) => {
     const currentTool = canvasStore.currentTool
-    
+
     // 只在矩形或圆形工具时显示预览
     if (currentTool === 'rectangle' || currentTool === 'circle') {
       // 创建或更新预览图形
@@ -106,7 +106,7 @@ onMounted(async () => {
       createCircle(app, mouseX, mouseY)
     } else if (currentTool === 'select') {
       // 点击空白区域取消选中
-      selectionStore.deselect()
+      selectionStore.clearSelection()
     }
   })
 
@@ -119,7 +119,7 @@ onMounted(async () => {
   }, { deep: true })
 
   // 监听选中状态变化，重新渲染
-  watch(() => selectionStore.selectedId, () => {
+  watch(() => selectionStore.selectedIds, () => {
     renderExistingElements(app)
   })
 })
@@ -127,13 +127,19 @@ onMounted(async () => {
 // 创建矩形元素
 function createRectangle(app: Application, x: number, y: number) {
   // 保存到store（位置为左上角）
-  const id = elementsStore.addElement({
-    type: 'shape',
+  const id = elementsStore.addShape({
+    shapeType:'rectangle',
     x: x - 100, // 调整为左上角坐标
     y: y - 75,
     width: 200,
     height: 150,
-    fill: '#4A90E2',
+    opacity: 1,
+    locked: false,
+    visible: true,
+    zIndex: 0,
+    strokeColor: '#000000',
+    strokeWidth: 1,
+    fillColor: '#4A90E2',
     rotation: 0
   })
 
@@ -146,13 +152,19 @@ function createRectangle(app: Application, x: number, y: number) {
 // 创建圆形元素
 function createCircle(app: Application, x: number, y: number) {
   // 保存到store（位置为左上角的外接矩形）
-  const id = elementsStore.addElement({
-    type: 'shape',
+  const id = elementsStore.addShape({
+    shapeType:'circle',
     x: x - 75, // 调整为外接矩形左上角
     y: y - 75,
     width: 150,
     height: 150,
-    fill: '#E94B3C',
+    opacity: 1,
+    locked: false,
+    visible: true,
+    zIndex: 0,
+    strokeColor: '#000000',
+    strokeWidth: 1,
+    fillColor: '#E94B3C',
     rotation: 0
   })
 
@@ -186,13 +198,13 @@ function renderExistingElements(app: Application) {
         // 矩形
         graphic.rect(0, 0, element.width, element.height)
       }
-      graphic.fill(element.fill || '#000000')
-      
+      graphic.fill(element.fillColor || '#000000')
+
       // 添加边框
-      if (element.borderWidth && element.borderWidth > 0) {
+      if (element.strokeWidth && element.strokeWidth > 0) {
         graphic.stroke({
-          width: element.borderWidth,
-          color: element.borderColor || '#000000'
+          width: element.strokeWidth,
+          color: element.strokeColor || '#000000'
         })
       }
     }
@@ -213,7 +225,7 @@ function renderExistingElements(app: Application) {
     graphic.on('pointerdown', (event: FederatedPointerEvent) => {
       if (canvasStore.currentTool === 'select') {
         event.stopPropagation()
-        selectionStore.select(element.id)
+        selectionStore.selectElement(element.id)
         console.log('选中元素:', element.id)
       }
     })
@@ -225,7 +237,7 @@ function renderExistingElements(app: Application) {
       undefined, // onDragMove
       (x: number, y: number) => {
         // 拖拽结束时更新store中的元素位置
-        elementsStore.updateElement(element.id, { x, y })
+        elementsStore.moveElement(element.id,  x, y )
         console.log(`✅ 更新元素位置到 store: (${x}, ${y})`)
       }
     )
