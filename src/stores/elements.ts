@@ -62,7 +62,8 @@ export const useElementsStore = defineStore('elements', {
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
-      this.elements.push(newElement);
+      // 创建新数组引用，触发 watch
+      this.elements = [...this.elements, newElement];
       this.recordSnapshot()
       this.saveToLocal();
       return id;
@@ -92,7 +93,8 @@ export const useElementsStore = defineStore('elements', {
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
-      this.elements.push(newElement);
+      // 创建新数组引用，触发 watch
+      this.elements = [...this.elements, newElement];
       this.recordSnapshot()
       this.saveToLocal();
       return id;
@@ -107,7 +109,8 @@ export const useElementsStore = defineStore('elements', {
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
-      this.elements.push(newElement);
+      // 创建新数组引用，触发 watch
+      this.elements = [...this.elements, newElement];
       this.recordSnapshot()
       this.saveToLocal();
       return id;
