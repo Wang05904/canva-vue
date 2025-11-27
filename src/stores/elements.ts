@@ -185,6 +185,14 @@ export const useElementsStore = defineStore('elements', {
       this.saveToLocal()
     },
 
+    /** 批量删除元素 */
+    removeElements(ids: string[]) {
+      this.recordSnapshot()
+      const idSet = new Set(ids)
+      this.elements = this.elements.filter(el => !idSet.has(el.id))
+      this.saveToLocal()
+    },
+
     /** 清空所有元素 */
     clear() {
       this.recordSnapshot()
