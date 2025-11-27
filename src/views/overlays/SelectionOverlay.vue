@@ -8,10 +8,10 @@
       v-if="selectedIds.length === 1 && boundingBox"
       class="selection-box single"
       :style="{
-        left: boundingBox.x + 'px',
-        top: boundingBox.y + 'px',
+        transform: `translate(${boundingBox.x}px, ${boundingBox.y}px)`,
         width: boundingBox.width + 'px',
-        height: boundingBox.height + 'px'
+        height: boundingBox.height + 'px',
+        willChange: isDragging ? 'transform' : 'auto'
       }"
       @mousedown="startDrag"
     >
@@ -27,10 +27,10 @@
       v-if="selectedIds.length > 1 && boundingBox"
       class="selection-box multi draggable"
       :style="{
-        left: boundingBox.x + 'px',
-        top: boundingBox.y + 'px',
+        transform: `translate(${boundingBox.x}px, ${boundingBox.y}px)`,
         width: boundingBox.width + 'px',
-        height: boundingBox.height + 'px'
+        height: boundingBox.height + 'px',
+        willChange: isDragging ? 'transform' : 'auto'
       }"
       @mousedown="startDrag"
     >
@@ -44,67 +44,29 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch, inject } from 'vue'
 import { useSelectionStore } from '@/stores/selection'
 import { useElementsStore } from '@/stores/elements'
+import { useDragSync } from '@/composables/useDragSync'
+import type { CanvasService } from '@/services/canvas/CanvasService'
 
 const selectionStore = useSelectionStore()
 const elementsStore = useElementsStore()
 
+// 注入 canvasService
+const canvasService = inject<CanvasService>('canvasService')
+const { syncDragPosition } = canvasService ? useDragSync(canvasService) : { syncDragPosition: () => {} }
+
 const selectedIds = computed(() => selectionStore.selectedIds)
 const isDragging = ref(false)
 const dragStartPos = ref({ x: 0, y: 0 })
+const dragOffset = ref({ x: 0, y: 0 }) // 累计拖拽偏移量
 
-// 开始拖拽
-const startDrag = (event: MouseEvent) => {
-  if (selectedIds.value.length === 0) return
-  
-  isDragging.value = true
-  dragStartPos.value = { x: event.clientX, y: event.clientY }
-  
-  // 添加全局事件监听
-  document.addEventListener('mousemove', onDrag)
-  document.addEventListener('mouseup', stopDrag)
-  
-  // 阻止默认行为和事件冒泡
-  event.preventDefault()
-  event.stopPropagation()
-  
-  console.log('开始拖拽选中框')
-}
-
-// 拖拽中
-const onDrag = (event: MouseEvent) => {
-  if (!isDragging.value) return
-  
-  // 计算移动距离
-  const dx = event.clientX - dragStartPos.value.x
-  const dy = event.clientY - dragStartPos.value.y
-  
-  // 更新起始位置
-  dragStartPos.value = { x: event.clientX, y: event.clientY }
-  
-  // 移动所有选中的元素
-  if (selectedIds.value.length > 0) {
-    elementsStore.moveElements(selectedIds.value, dx, dy)
-  }
-}
-
-// 停止拖拽
-const stopDrag = () => {
-  if (!isDragging.value) return
-  
-  isDragging.value = false
-  
-  // 移除全局事件监听
-  document.removeEventListener('mousemove', onDrag)
-  document.removeEventListener('mouseup', stopDrag)
-  
-  console.log('拖拽完成')
-}
+// 使用 ref 缓存边界框，避免频繁计算
+const cachedBoundingBox = ref<{ x: number; y: number; width: number; height: number } | null>(null)
 
 // 计算选中元素的组合边界框
-const boundingBox = computed(() => {
+const calculateBoundingBox = () => {
   if (selectedIds.value.length === 0) return null
 
   const selectedElements = selectedIds.value
@@ -132,7 +94,87 @@ const boundingBox = computed(() => {
     width: maxX - minX,
     height: maxY - minY
   }
+}
+
+// 使用 watch 立即更新边界框，但拖拽时使用本地偏移量
+watch(
+  () => selectedIds.value.map(id => {
+    const el = elementsStore.getElementById(id)
+    return el ? `${el.x},${el.y},${el.width},${el.height}` : ''
+  }).join('|'),
+  () => {
+    cachedBoundingBox.value = calculateBoundingBox()
+  },
+  { immediate: true }
+)
+
+// 实际显示的边界框（拖拽时加上偏移量）
+const boundingBox = computed(() => {
+  if (!cachedBoundingBox.value) return null
+  
+  if (isDragging.value) {
+    return {
+      x: cachedBoundingBox.value.x + dragOffset.value.x,
+      y: cachedBoundingBox.value.y + dragOffset.value.y,
+      width: cachedBoundingBox.value.width,
+      height: cachedBoundingBox.value.height
+    }
+  }
+  
+  return cachedBoundingBox.value
 })
+
+// 开始拖拽
+const startDrag = (event: MouseEvent) => {
+  if (selectedIds.value.length === 0) return
+  
+  isDragging.value = true
+  dragStartPos.value = { x: event.clientX, y: event.clientY }
+  dragOffset.value = { x: 0, y: 0 } // 重置偏移量
+  
+  // 添加全局事件监听
+  document.addEventListener('mousemove', onDrag)
+  document.addEventListener('mouseup', stopDrag)
+  
+  // 阻止默认行为和事件冒泡
+  event.preventDefault()
+  event.stopPropagation()
+}
+
+// 拖拽中 - 直接更新偏移量和 Canvas 位置
+const onDrag = (event: MouseEvent) => {
+  if (!isDragging.value) return
+  
+  // 计算累计偏移量
+  const newOffset = {
+    x: event.clientX - dragStartPos.value.x,
+    y: event.clientY - dragStartPos.value.y
+  }
+  
+  dragOffset.value = newOffset
+  
+  // 同步更新 Canvas 元素位置（直接操作 Graphics，不触发完整渲染）
+  if (canvasService && selectedIds.value.length > 0) {
+    syncDragPosition(selectedIds.value, newOffset.x, newOffset.y)
+  }
+}
+
+// 停止拖拽 - 此时才更新 Store
+const stopDrag = () => {
+  if (!isDragging.value) return
+  
+  // 应用最终偏移到 Store
+  if ((Math.abs(dragOffset.value.x) > 1 || Math.abs(dragOffset.value.y) > 1) && selectedIds.value.length > 0) {
+    elementsStore.moveElements(selectedIds.value, dragOffset.value.x, dragOffset.value.y)
+  }
+  
+  isDragging.value = false
+  dragOffset.value = { x: 0, y: 0 }
+  
+  // 移除全局事件监听
+  document.removeEventListener('mousemove', onDrag)
+  document.removeEventListener('mouseup', stopDrag)
+}
 </script>
 
 <style scoped>

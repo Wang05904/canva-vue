@@ -12,14 +12,17 @@ View层 - 画布容器组件
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted, provide } from 'vue'
 import Stats from 'stats.js'
 import TopToolbar from '../../views/ui/TopToolbar.vue'
 import FloatingToolbar from '../../views/ui/FloatingToolbar.vue'
 import SelectionOverlay from '../../views/overlays/SelectionOverlay.vue'
 import { useCanvas } from '@/composables/useCanvas'
-const { container } = useCanvas()
 
+const { container, canvasService } = useCanvas()
+
+// 提供 canvasService 给子组件使用
+provide('canvasService', canvasService)
 
 let stats: any
 onMounted(() => {

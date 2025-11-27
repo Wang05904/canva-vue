@@ -107,6 +107,20 @@ export class CanvasService {
   }
 
   /**
+   * 直接更新元素位置（拖拽优化）
+   */
+  updateElementPosition(elementId: string, x: number, y: number): void {
+    this.renderService.updateElementPosition(elementId, x, y)
+  }
+
+  /**
+   * 批量更新元素位置（拖拽优化）
+   */
+  batchUpdatePositions(updates: Array<{ id: string; x: number; y: number }>): void {
+    this.renderService.batchUpdatePositions(updates)
+  }
+
+  /**
    * 获取工具服务
    */
   getToolService(): ToolService {
