@@ -8,7 +8,7 @@
  * 4. 提供渲染API给上层
  */
 import { Application, Graphics } from 'pixi.js'
-import type { AnyElement } from '@/cores/types/element'
+import type { AnyElement, ShapeElement } from '@/cores/types/element'
 
 export class RenderService {
   private app: Application | null = null
@@ -113,32 +113,40 @@ export class RenderService {
     graphic.y = element.y
   }
 
-  /**
-   * 绘制形状
-   */
-  private drawShape(graphic: Graphics, element: AnyElement): void {
-    graphic.clear()
-    
-    if (element.type === 'shape') {
-      if (element.width === element.height) {
-        // 圆形
-        const radius = element.width / 2
-        graphic.circle(radius, radius, radius)
-      } else {
-        // 矩形
-        graphic.rect(0, 0, element.width, element.height)
-      }
-      graphic.fill(element.fillColor || '#000000')
-      
-      // 添加边框
-      if (element.strokeWidth && element.strokeWidth > 0) {
-        graphic.stroke({
-          width: element.strokeWidth,
-          color: element.strokeColor || '#000000'
-        })
-      }
+    /**
+     * 绘制形状
+     */
+    private drawShape(graphic: Graphics, element: AnyElement): void {
+        graphic.clear()
+        
+        if (element.type === 'shape') {
+            const shapeElement = element as ShapeElement
+            
+            if (shapeElement.shapeType === 'circle' && element.width === element.height) {
+                // 圆形
+                const radius = element.width / 2
+                graphic.circle(radius, radius, radius)
+            } else if (shapeElement.shapeType === 'triangle') {
+                // 三角形 - 绘制等腰三角形，底边为width，高为height
+                graphic.moveTo(element.width / 2, 0)  // 顶点
+                graphic.lineTo(0, element.height)     // 左下角
+                graphic.lineTo(element.width, element.height)  // 右下角
+                graphic.closePath()
+            } else {
+                // 矩形或其他形状
+                graphic.rect(0, 0, element.width, element.height)
+            }
+            graphic.fill(element.fillColor || '#000000')
+            
+            // 添加边框
+            if (element.strokeWidth && element.strokeWidth > 0) {
+                graphic.stroke({
+                    width: element.strokeWidth,
+                    color: element.strokeColor || '#000000'
+                })
+            }
+        }
     }
-  }
 
   /**
    * 删除Graphics对象

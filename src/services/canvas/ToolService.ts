@@ -8,7 +8,7 @@
  */
 import { Graphics, FederatedPointerEvent, Application } from 'pixi.js'
 
-export type ToolType = 'select' | 'rectangle' | 'circle' | 'editor'
+export type ToolType = 'select' | 'rectangle' | 'circle' | 'triangle' | 'editor'
 
 export interface ToolConfig {
   type: ToolType
@@ -49,10 +49,10 @@ export class ToolService {
   /**
    * 是否是绘图工具
    */
-  isDrawingTool(tool?: ToolType): boolean {
-    const t = tool || this.currentTool
-    return t === 'rectangle' || t === 'circle'
-  }
+    isDrawingTool(tool?: ToolType): boolean {
+        const t = tool || this.currentTool
+        return t === 'rectangle' || t === 'circle' || t === 'triangle'
+    }
 
   /**
    * 更新工具预览
@@ -74,14 +74,23 @@ export class ToolService {
       const mouseX = event.global.x
       const mouseY = event.global.y
 
-      // 根据工具类型绘制预览
-      if (this.currentTool === 'rectangle') {
-        this.previewShape.rect(-100, -75, 200, 150)
-        this.previewShape.fill('#4A90E2')
-      } else if (this.currentTool === 'circle') {
-        this.previewShape.circle(0, 0, 75)
-        this.previewShape.fill('#E94B3C')
-      }
+            // 根据工具类型绘制预览
+            if (this.currentTool === 'rectangle') {
+                this.previewShape.rect(-100, -75, 200, 150)
+                this.previewShape.fill('#4A90E2')
+            } else if (this.currentTool === 'circle') {
+                this.previewShape.circle(0, 0, 75)
+                this.previewShape.fill('#E94B3C')
+            } else if (this.currentTool === 'triangle') {
+                // 绘制等腰三角形预览，底边为150，高为150
+                const width = 150
+                const height = 150
+                this.previewShape.moveTo(0, -height / 2)  // 顶点
+                this.previewShape.lineTo(-width / 2, height / 2)  // 左下角
+                this.previewShape.lineTo(width / 2, height / 2)   // 右下角
+                this.previewShape.closePath()
+                this.previewShape.fill('#34C759')
+            }
 
       this.previewShape.x = mouseX
       this.previewShape.y = mouseY
@@ -104,55 +113,67 @@ export class ToolService {
   /**
    * 获取工具配置
    */
-  getToolConfig(tool?: ToolType): ToolConfig {
-    const t = tool || this.currentTool
-    
-    const configs: Record<ToolType, ToolConfig> = {
-      select: { type: 'select' },
-      rectangle: {
-        type: 'rectangle',
-        previewSize: { width: 200, height: 150 },
-        fillColor: '#4A90E2'
-      },
-      circle: {
-        type: 'circle',
-        previewSize: { width: 150, height: 150 },
-        fillColor: '#E94B3C'
-      },
-      editor: { type: 'editor' }
-    }
+    getToolConfig(tool?: ToolType): ToolConfig {
+        const t = tool || this.currentTool
+        
+        const configs: Record<ToolType, ToolConfig> = {
+            select: { type: 'select' },
+            rectangle: {
+                type: 'rectangle',
+                previewSize: { width: 200, height: 150 },
+                fillColor: '#4A90E2'
+            },
+            circle: {
+                type: 'circle',
+                previewSize: { width: 150, height: 150 },
+                fillColor: '#E94B3C'
+            },
+            triangle: {
+                type: 'triangle',
+                previewSize: { width: 150, height: 150 },
+                fillColor: '#34C759'
+            },
+            editor: { type: 'editor' }
+        }
 
-    return configs[t]
-  }
+        return configs[t]
+    }
 
   /**
    * 计算元素创建位置（考虑鼠标位置和元素大小）
    */
-  calculateCreatePosition(
-    mouseX: number,
-    mouseY: number,
-    tool?: ToolType
-  ): { x: number; y: number; width: number; height: number } {
-    const config = this.getToolConfig(tool)
-    
-    if (config.type === 'rectangle') {
-      return {
-        x: mouseX - 100,
-        y: mouseY - 75,
-        width: 200,
-        height: 150
-      }
-    } else if (config.type === 'circle') {
-      return {
-        x: mouseX - 75,
-        y: mouseY - 75,
-        width: 150,
-        height: 150
-      }
-    }
+    calculateCreatePosition(
+        mouseX: number,
+        mouseY: number,
+        tool?: ToolType
+    ): { x: number; y: number; width: number; height: number } {
+        const config = this.getToolConfig(tool)
+        
+        if (config.type === 'rectangle') {
+            return {
+                x: mouseX - 100,
+                y: mouseY - 75,
+                width: 200,
+                height: 150
+            }
+        } else if (config.type === 'circle') {
+            return {
+                x: mouseX - 75,
+                y: mouseY - 75,
+                width: 150,
+                height: 150
+            }
+        } else if (config.type === 'triangle') {
+            return {
+                x: mouseX - 75,
+                y: mouseY - 75,
+                width: 150,
+                height: 150
+            }
+        }
 
-    return { x: mouseX, y: mouseY, width: 100, height: 100 }
-  }
+        return { x: mouseX, y: mouseY, width: 100, height: 100 }
+    }
 
   /**
    * 清理资源

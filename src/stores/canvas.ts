@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 
-export type ToolType = 'select' | 'rectangle' | 'circle' | 'editor'
+export type ToolType = 'select' | 'rectangle' | 'circle' | 'triangle' | 'editor'
 
 export const useCanvasStore = defineStore('canvas', {
   state: () => ({
