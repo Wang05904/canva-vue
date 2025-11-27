@@ -5,17 +5,27 @@
  */
 import type { AnyElement, Point, ShapeElement } from '@/cores/types/element'
 
+// 全局元素列表，用于hitTest函数访问
+let globalElements: AnyElement[] = []
+
+/**
+ * 设置全局元素列表，供hitTest函数使用
+ * @param elements 所有元素列表
+ */
+export function setElementsForHitTest(elements: AnyElement[]): void {
+  globalElements = elements
+}
+
 /**
  * 点与元素碰撞检测的统一入口
  * @param x 点击位置的x坐标
  * @param y 点击位置的y坐标
- * @param elements 所有元素列表
  * @returns 命中的元素，如果没有命中返回null
  */
-export function hitTest(x: number, y: number, elements: AnyElement[]): AnyElement | null {
+export function hitTest(x: number, y: number): AnyElement | null {
   const point: Point = { x, y }
   // 1. 获取所有顶层元素（parentGroup为null）并按z-index从高到低排序
-  const topLevelElements = elements
+  const topLevelElements = globalElements
     .filter(element => element.parentGroup === null && element.visible)
     .sort((a, b) => b.zIndex - a.zIndex)
 
