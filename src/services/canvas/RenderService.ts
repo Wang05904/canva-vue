@@ -120,12 +120,20 @@ export class RenderService {
     graphic.clear()
     
     if (element.type === 'shape') {
-      if (element.width === element.height) {
+      if (element.shapeType === 'circle') {
         // 圆形
         const radius = element.width / 2
         graphic.circle(radius, radius, radius)
+      } else if (element.shapeType === 'triangle') {
+        // 三角形
+        const halfWidth = element.width / 2
+        graphic.poly([
+          halfWidth, 0,              // 顶点
+          0, element.height,         // 左下
+          element.width, element.height  // 右下
+        ])
       } else {
-        // 矩形
+        // 矩形（默认）
         graphic.rect(0, 0, element.width, element.height)
       }
       graphic.fill(element.fillColor || '#000000')

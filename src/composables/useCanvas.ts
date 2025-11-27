@@ -139,6 +139,25 @@ export function useCanvas() {
       })
       console.log('创建圆形元素:', id)
       canvasStore.setTool('select')
+    } else if (currentTool === 'triangle') {
+      const pos = canvasService.calculateCreatePosition(mouseX, mouseY, 'triangle')
+      const id = elementsStore.addShape({
+        shapeType: 'triangle',
+        x: pos.x,
+        y: pos.y,
+        width: pos.width,
+        height: pos.height,
+        opacity: 1,
+        locked: false,
+        visible: true,
+        zIndex: 0,
+        strokeColor: '#000000',
+        strokeWidth: 1,
+        fillColor: '#10B981',
+        rotation: 0
+      })
+      console.log('创建三角形元素:', id)
+      canvasStore.setTool('select')
     }
   }
 

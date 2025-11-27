@@ -8,7 +8,7 @@
  */
 import { Graphics, FederatedPointerEvent, Application } from 'pixi.js'
 
-export type ToolType = 'select' | 'rectangle' | 'circle' | 'editor'
+export type ToolType = 'select' | 'rectangle' | 'circle' | 'triangle' | 'editor'
 
 export interface ToolConfig {
   type: ToolType
@@ -51,7 +51,7 @@ export class ToolService {
    */
   isDrawingTool(tool?: ToolType): boolean {
     const t = tool || this.currentTool
-    return t === 'rectangle' || t === 'circle'
+    return t === 'rectangle' || t === 'circle' || t === 'triangle'
   }
 
   /**
@@ -81,6 +81,13 @@ export class ToolService {
       } else if (this.currentTool === 'circle') {
         this.previewShape.circle(0, 0, 75)
         this.previewShape.fill('#E94B3C')
+      } else if (this.currentTool === 'triangle') {
+        this.previewShape.poly([
+          0, -75,    // 顶点
+          -87, 75,   // 左下
+          87, 75     // 右下
+        ])
+        this.previewShape.fill('#10B981')
       }
 
       this.previewShape.x = mouseX
@@ -119,6 +126,11 @@ export class ToolService {
         previewSize: { width: 150, height: 150 },
         fillColor: '#E94B3C'
       },
+      triangle: {
+        type: 'triangle',
+        previewSize: { width: 174, height: 150 },
+        fillColor: '#10B981'
+      },
       editor: { type: 'editor' }
     }
 
@@ -147,6 +159,13 @@ export class ToolService {
         x: mouseX - 75,
         y: mouseY - 75,
         width: 150,
+        height: 150
+      }
+    } else if (config.type === 'triangle') {
+      return {
+        x: mouseX - 87,
+        y: mouseY - 75,
+        width: 174,
         height: 150
       }
     }
