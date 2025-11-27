@@ -37,8 +37,12 @@ export const useHistoryStore = defineStore('history', {
     },
 
     /** 开始批处理：合并多次变更为一次历史快照 */
-    beginBatch() {
+    beginBatch(initialSnapshot?: AnyElement[]) {
       this.batchDepth++
+      // 如果传入初始快照，且尚未有 pendingSnapshot，则设置它（用于在 endBatch 时入栈）
+      if (initialSnapshot && this.pendingSnapshot == null) {
+        this.pendingSnapshot = JSON.parse(JSON.stringify(initialSnapshot))
+      }
     },
 
     /** 结束批处理并提交合并后的快照（如果有） */

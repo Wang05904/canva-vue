@@ -54,7 +54,6 @@ export const useElementsStore = defineStore('elements', {
     },
     /** 添加元素 */
     addShape(payload: Omit<ShapeElement, 'id'| 'type'|'createdAt'| 'updatedAt'>): string {
-      this.recordSnapshot()
       const id = this.generateId();
       const newElement: ShapeElement = {
         ...payload,
@@ -64,12 +63,12 @@ export const useElementsStore = defineStore('elements', {
         updatedAt: Date.now(),
       };
       this.elements.push(newElement);
+      this.recordSnapshot()
       this.saveToLocal();
       return id;
     },
     // 创建图像元素
     addImage(payload: Omit<ImageElement, 'id'| 'type'|'createdAt'| 'updatedAt'>): string {
-      this.recordSnapshot()
       const id = this.generateId();
       const newElement: ImageElement = {
         ...payload,
@@ -79,12 +78,12 @@ export const useElementsStore = defineStore('elements', {
         updatedAt: Date.now(),
       };
       this.elements.push(newElement);
+      this.recordSnapshot()
       this.saveToLocal();
       return id;
     },
     // 创建文本元素
     addText(payload: Omit<TextElement, 'id'| 'type'|'createdAt'| 'updatedAt'>): string {
-      this.recordSnapshot()
       const id = this.generateId();
       const newElement: TextElement = {
         ...payload,
@@ -94,12 +93,12 @@ export const useElementsStore = defineStore('elements', {
         updatedAt: Date.now(),
       };
       this.elements.push(newElement);
+      this.recordSnapshot()
       this.saveToLocal();
       return id;
     },
     // 创建组合元素
     addGroup(payload: Omit<GroupElement, 'id'| 'type'|'createdAt'| 'updatedAt'>): string {
-      this.recordSnapshot()
       const id = this.generateId();
       const newElement: GroupElement = {
         ...payload,
@@ -109,6 +108,7 @@ export const useElementsStore = defineStore('elements', {
         updatedAt: Date.now(),
       };
       this.elements.push(newElement);
+      this.recordSnapshot()
       this.saveToLocal();
       return id;
     },
@@ -122,12 +122,12 @@ export const useElementsStore = defineStore('elements', {
       const element = this.elements.find(el => el.id === elementId);
       if (!element) return;
 
-      this.recordSnapshot()
 
       //不用判断类型是否有效，在view层就限制只有图形元素才能编辑这些属性
       //对象合并Object.assign(目标对象, 源对象)
       Object.assign(element, updates)
       element.updatedAt = Date.now()
+      this.recordSnapshot()
       this.saveToLocal()
     },
 
@@ -135,18 +135,16 @@ export const useElementsStore = defineStore('elements', {
     moveElement(id: string, dx: number, dy: number) {
       const el = this.elements.find((e) => e.id === id)
       if (!el) return
-
-      this.recordSnapshot()
-
       el.x += dx
       el.y += dy
+      this.recordSnapshot()
       this.saveToLocal()
     },
 
     /** 开始批处理（代理到 history） */
     beginBatch() {
       const history = useHistoryStore()
-      history.beginBatch()
+      history.beginBatch(JSON.parse(JSON.stringify(this.elements)))
     },
 
     /** 结束批处理（代理到 history） */
@@ -162,7 +160,6 @@ export const useElementsStore = defineStore('elements', {
      * @param dy 垂直移动距离
      */
     moveElements(ids: string[], dx: number, dy: number) {
-      this.recordSnapshot()
       ids.forEach(id => {
         const el = this.elements.find((e) => e.id === id)
         if (el) {
@@ -170,6 +167,7 @@ export const useElementsStore = defineStore('elements', {
           el.y += dy
         }
       })
+      this.recordSnapshot()
       this.saveToLocal()
     },
 
@@ -202,23 +200,23 @@ export const useElementsStore = defineStore('elements', {
 
     /** 删除元素 */
     removeElement(id: string) {
-      this.recordSnapshot()
       this.elements = this.elements.filter((el) => el.id !== id)
+      this.recordSnapshot()
       this.saveToLocal()
     },
 
     /** 批量删除元素 */
     removeElements(ids: string[]) {
-      this.recordSnapshot()
       const idSet = new Set(ids)
       this.elements = this.elements.filter(el => !idSet.has(el.id))
+      this.recordSnapshot()
       this.saveToLocal()
     },
 
     /** 清空所有元素 */
     clear() {
-      this.recordSnapshot()
       this.elements = []
+      this.recordSnapshot()
       this.saveToLocal()
     },
 
