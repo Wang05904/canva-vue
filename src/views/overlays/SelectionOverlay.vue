@@ -13,7 +13,7 @@
       ref="singleBoxRef"
       class="selection-box single"
       :style="{
-        transform: `translate(${boundingBox.x}px, ${boundingBox.y}px)`,
+        transform: `translate3d(${boundingBox.x}px, ${boundingBox.y}px, 0)`,
         width: boundingBox.width + 'px',
         height: boundingBox.height + 'px'
       }"
@@ -32,7 +32,7 @@
       ref="multiBoxRef"
       class="selection-box multi draggable"
       :style="{
-        transform: `translate(${boundingBox.x}px, ${boundingBox.y}px)`,
+        transform: `translate3d(${boundingBox.x}px, ${boundingBox.y}px, 0)`,
         width: boundingBox.width + 'px',
         height: boundingBox.height + 'px'
       }"
@@ -48,10 +48,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, inject } from 'vue'
+import { computed, ref, watch, inject, onUnmounted } from 'vue'
 import { useSelectionStore } from '@/stores/selection'
 import { useElementsStore } from '@/stores/elements'
 import { useDragSync } from '@/composables/useDragSync'
+import { useDragState } from '@/composables/useDragState'
 import type { CanvasService } from '@/services/canvas/CanvasService'
 
 const selectionStore = useSelectionStore()
@@ -60,6 +61,7 @@ const elementsStore = useElementsStore()
 // 注入 canvasService
 const canvasService = inject<CanvasService>('canvasService')
 const { syncDragPosition } = canvasService ? useDragSync(canvasService) : { syncDragPosition: () => {} }
+const { getDragState, startDrag: startGlobalDrag, updateDragOffset: updateGlobalDragOffset, endDrag: endGlobalDrag } = useDragState()
 
 const selectedIds = computed(() => selectionStore.selectedIds)
 const isDragging = ref(false)
@@ -103,7 +105,8 @@ const calculateBoundingBox = () => {
   }
 }
 
-// 只在选中元素变化或元素位置确实改变时更新边界框
+// 只在选中元素变化或元素位置确实改变时更新边界框（使用节流避免频繁计算）
+let updateTimer: number | null = null
 watch(
   () => selectedIds.value.map(id => {
     const el = elementsStore.getElementById(id)
@@ -111,14 +114,34 @@ watch(
   }).join('|'),
   () => {
     if (!isDragging.value) {
-      cachedBoundingBox.value = calculateBoundingBox()
+      // 使用微任务批量更新，避免同步计算
+      if (updateTimer) cancelAnimationFrame(updateTimer)
+      updateTimer = requestAnimationFrame(() => {
+        cachedBoundingBox.value = calculateBoundingBox()
+        updateTimer = null
+      })
     }
   },
   { immediate: true }
 )
 
-// 实际显示的边界框（只在非拖拽时使用缓存的边界框）
+// 实际显示的边界框（拖拽时应用全局偏移）
 const boundingBox = computed(() => {
+  const dragState = getDragState().value
+  
+  // 如果正在拖拽且拖拽的元素包含当前选中的元素，应用偏移
+  if (dragState && cachedBoundingBox.value) {
+    const isDraggingSelected = dragState.elementIds.some(id => selectedIds.value.includes(id))
+    if (isDraggingSelected) {
+      return {
+        x: cachedBoundingBox.value.x + dragState.offset.x,
+        y: cachedBoundingBox.value.y + dragState.offset.y,
+        width: cachedBoundingBox.value.width,
+        height: cachedBoundingBox.value.height
+      }
+    }
+  }
+  
   return cachedBoundingBox.value
 })
 
@@ -129,6 +152,9 @@ const startDrag = (event: MouseEvent) => {
   isDragging.value = true
   dragStartPos.value = { x: event.clientX, y: event.clientY }
   totalOffset.value = { x: 0, y: 0 }
+  
+  // 通知全局拖拽状态
+  startGlobalDrag(selectedIds.value)
   
   // 添加拖拽类以启用性能优化
   const boxRef = selectedIds.value.length === 1 ? singleBoxRef.value : multiBoxRef.value
@@ -155,18 +181,21 @@ const onDrag = (event: MouseEvent) => {
   
   totalOffset.value = { x: dx, y: dy }
   
+  // 立即更新全局拖拽偏移
+  updateGlobalDragOffset({ x: dx, y: dy })
+  
   // 使用 RAF 节流
   if (animationFrameId !== null) {
     return // 已有待处理的帧，跳过
   }
   
   animationFrameId = requestAnimationFrame(() => {
-    // 直接更新选中框 DOM
+    // 直接更新选中框 DOM，使用 translate3d 启用 GPU 加速
     const boxRef = selectedIds.value.length === 1 ? singleBoxRef.value : multiBoxRef.value
     if (boxRef && cachedBoundingBox.value) {
       const newX = cachedBoundingBox.value.x + totalOffset.value.x
       const newY = cachedBoundingBox.value.y + totalOffset.value.y
-      boxRef.style.transform = `translate(${newX}px, ${newY}px)`
+      boxRef.style.transform = `translate3d(${newX}px, ${newY}px, 0)`
     }
     
     // 同步更新 Canvas 元素位置（直接操作 Graphics，不触发完整渲染）
@@ -206,10 +235,28 @@ const stopDrag = () => {
   isDragging.value = false
   totalOffset.value = { x: 0, y: 0 }
   
+  // 结束全局拖拽状态
+  endGlobalDrag()
+  
   // 移除全局事件监听
   document.removeEventListener('mousemove', onDrag)
   document.removeEventListener('mouseup', stopDrag)
 }
+
+// 组件卸载时清理
+onUnmounted(() => {
+  if (animationFrameId !== null) {
+    cancelAnimationFrame(animationFrameId)
+    animationFrameId = null
+  }
+  if (updateTimer !== null) {
+    cancelAnimationFrame(updateTimer)
+    updateTimer = null
+  }
+  document.removeEventListener('mousemove', onDrag)
+  document.removeEventListener('mouseup', stopDrag)
+})
+
 </script>
 
 <style scoped>

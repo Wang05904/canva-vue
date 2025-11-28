@@ -24,14 +24,14 @@ const props = defineProps<{
 // 使用拖拽 composable
 const { handleMouseDown } = useElementDrag(props.element.id)
 
-// 容器样式
+// 容器样式 - 使用 transform3d 启用 GPU 加速
 const containerStyle = computed(() => ({
   position: 'absolute' as const,
-  left: `${props.element.x}px`,
-  top: `${props.element.y}px`,
+  left: '0',
+  top: '0',
   width: `${props.element.width}px`,
   height: `${props.element.height}px`,
-  transform: `rotate(${props.element.rotation}deg)`,
+  transform: `translate3d(${props.element.x}px, ${props.element.y}px, 0) rotate(${props.element.rotation || 0}deg)`,
   opacity: props.element.opacity,
   visibility: (props.element.visible ? 'visible' : 'hidden') as 'visible' | 'hidden',
   pointerEvents: (props.element.locked ? 'none' : 'auto') as 'none' | 'auto',
@@ -66,11 +66,14 @@ const imageStyle = computed(() => {
 
 <style scoped>
 .image-element {
-  transform-origin: center center;
-  /* GPU 加速 */
+  transform-origin: top left;
+  /* 拖拽时启用 GPU 加速 */
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.image-element.dragging {
   will-change: transform;
-  /* 使用硬件加速的 transform */
-  transform: translateZ(0);
 }
 
 .image-element img {
