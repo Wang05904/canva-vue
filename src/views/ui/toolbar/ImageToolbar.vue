@@ -97,7 +97,7 @@
     <div class="control-group">
       <div class="group-header">
         <span class="label">透明度</span>
-        <span class="value-text">{{ ((selectedImage?.opacity || 1) * 100).toFixed(0) }}%</span>
+        <span class="value-text">{{ ((selectedImage?.opacity ?? 1) * 100).toFixed(0) }}%</span>
       </div>
       <div class="slider-wrapper">
         <input
@@ -105,10 +105,10 @@
           min="0"
           max="1"
           step="0.1"
-          :value="selectedImage?.opacity || 1"
+          :value="selectedImage?.opacity ?? 1"
           @input="updateOpacity"
           class="filter-slider"
-          :style="{ '--progress': ((selectedImage?.opacity || 1) * 100) + '%' }"
+          :style="{ '--progress': ((selectedImage?.opacity ?? 1) * 100) + '%' }"
         />
       </div>
     </div>
@@ -178,7 +178,7 @@ const hasFilter = (type: SimpleFilterType): boolean => {
 const getFilterValue = (type: SimpleFilterType): number => {
   if (!selectedImage.value) return 0
   const filter = selectedImage.value.filters.find(f => f.type === type)
-  return filter?.value || getDefaultFilterValue(type)
+  return filter?.value ?? getDefaultFilterValue(type)
 }
 
 // 获取默认滤镜值
