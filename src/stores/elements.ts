@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import type { AnyElement,ShapeElement,ImageElement,TextElement,GroupElement } from '@/cores/types/element'
 import { LocalStorage } from './persistence/LocalStorage'
 import { useHistoryStore } from './history'
+import { useSelectionStore } from './selection'
 
 const storage = new LocalStorage('elements_')
 const STORAGE_KEY = 'list'
@@ -9,6 +10,7 @@ const STORAGE_KEY = 'list'
 export const useElementsStore = defineStore('elements', {
   state: () => ({
     elements: [] as AnyElement[],
+    clipboard: [] as Omit<AnyElement, 'id' | 'createdAt' | 'updatedAt'>[],
   }),
 
   getters: {
@@ -292,6 +294,94 @@ export const useElementsStore = defineStore('elements', {
       // 创建新数组引用，触发 watch
       this.elements = [...this.elements]
       this.saveToLocal()
+    },
+
+    /** 复制选中的元素 */
+    copySelectedElements() {
+      const selectionStore = useSelectionStore()
+      if (selectionStore.selectedIds.length === 0) return
+
+      // 获取选中的元素
+      const selectedElements = this.elements.filter(el => selectionStore.selectedIds.includes(el.id))
+      
+      // 深拷贝元素，移除ID和时间戳
+      this.clipboard = selectedElements.map(el => {
+        // 直接深拷贝整个元素，后续创建新元素时会覆盖ID和时间戳
+        const copy = JSON.parse(JSON.stringify(el))
+        // 删除不需要的属性
+        delete copy.id
+        delete copy.createdAt
+        delete copy.updatedAt
+        return copy
+      })
+    },
+
+    /** 粘贴元素 */
+    pasteElements(position?: { x: number; y: number }) {
+      if (this.clipboard.length === 0) return
+
+      const selectionStore = useSelectionStore()
+      const newElementIds: string[] = []
+      
+      // 为每个粘贴的元素生成新ID并调整位置
+      this.clipboard.forEach((clipboardEl, index) => {
+        const id = this.generateId()
+        const offset = 10 // 偏移量
+        
+        // 计算新位置
+        let newX: number;
+        let newY: number;
+        
+        if (position) {
+          // 如果提供了位置，使用该位置，多个元素时依次偏移
+          newX = position.x + offset * index;
+          newY = position.y + offset * index;
+        } else {
+          // 否则使用原位置偏移
+          newX = clipboardEl.x + offset * (index + 1);
+          newY = clipboardEl.y + offset * (index + 1);
+        }
+        
+        // 创建新元素
+        let newElement: AnyElement;
+        
+        if (clipboardEl.type === 'group') {
+          // 组合元素需要确保有 children 属性，使用类型断言
+          const groupClipboardEl = clipboardEl as Omit<GroupElement, 'id' | 'createdAt' | 'updatedAt'>;
+          newElement = {
+            ...groupClipboardEl,
+            id,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            x: newX,
+            y: newY,
+            children: groupClipboardEl.children || [],
+          } as GroupElement;
+        } else {
+          // 非组合元素
+          newElement = {
+            ...clipboardEl,
+            id,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            x: newX,
+            y: newY,
+          } as AnyElement;
+        }
+        
+        this.elements.push(newElement)
+        newElementIds.push(id)
+      })
+      
+      // 创建新数组引用，触发 watch 监听，确保画布重新渲染
+      this.elements = [...this.elements]
+      
+      // 记录快照
+      this.recordSnapshot()
+      // 保存到本地
+      this.saveToLocal()
+      // 自动选中新粘贴的元素
+      selectionStore.selectedIds = newElementIds
     },
 
   },

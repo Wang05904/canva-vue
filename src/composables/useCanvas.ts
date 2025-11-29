@@ -16,6 +16,9 @@ export function useCanvas() {
   const canvasStore = useCanvasStore()
   const elementsStore = useElementsStore()
   const selectionStore = useSelectionStore()
+  
+  // 鼠标位置跟踪
+  const mousePosition = ref({ x: 0, y: 0 })
 
   /**
    * 初始化画布
@@ -153,12 +156,52 @@ export function useCanvas() {
         }
     }
 
+  /** 鼠标移动事件处理 */
+  const handleMouseMove = (event: MouseEvent) => {
+    if (!container.value) return
+    
+    // 获取容器的位置
+    const rect = container.value.getBoundingClientRect()
+    
+    // 计算鼠标在画布内的相对位置
+    mousePosition.value = {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top
+    }
+  }
+
+  /** 键盘事件处理 */
+  const handleKeyDown = (event: KeyboardEvent) => {
+    // 处理 Ctrl+C 复制
+    if ((event.ctrlKey || event.metaKey) && event.key === 'c') {
+      event.preventDefault()
+      elementsStore.copySelectedElements()
+      console.log('复制选中元素')
+    }
+    
+    // 处理 Ctrl+V 粘贴
+    if ((event.ctrlKey || event.metaKey) && event.key === 'v') {
+      event.preventDefault()
+      // 传递鼠标位置给粘贴方法
+      elementsStore.pasteElements(mousePosition.value)
+      console.log('粘贴元素到位置:', mousePosition.value)
+    }
+  }
+
   onMounted(() => {
     initialize()
+    // 添加键盘事件监听
+    window.addEventListener('keydown', handleKeyDown)
+    // 添加鼠标移动事件监听
+    window.addEventListener('mousemove', handleMouseMove)
   })
 
   onUnmounted(() => {
     canvasService.destroy()
+    // 移除键盘事件监听
+    window.removeEventListener('keydown', handleKeyDown)
+    // 移除鼠标移动事件监听
+    window.removeEventListener('mousemove', handleMouseMove)
   })
 
   return {
