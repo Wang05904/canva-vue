@@ -105,22 +105,14 @@ const calculateBoundingBox = () => {
   }
 }
 
-// 只在选中元素变化或元素位置确实改变时更新边界框（使用节流避免频繁计算）
-let updateTimer: number | null = null
+// 监听选中元素变化，同步更新边界框缓存
 watch(
   () => selectedIds.value.map(id => {
     const el = elementsStore.getElementById(id)
     return el ? `${el.x},${el.y},${el.width},${el.height}` : ''
   }).join('|'),
   () => {
-    if (!isDragging.value) {
-      // 使用微任务批量更新，避免同步计算
-      if (updateTimer) cancelAnimationFrame(updateTimer)
-      updateTimer = requestAnimationFrame(() => {
-        cachedBoundingBox.value = calculateBoundingBox()
-        updateTimer = null
-      })
-    }
+    cachedBoundingBox.value = calculateBoundingBox()
   },
   { immediate: true }
 )
@@ -129,15 +121,19 @@ watch(
 const boundingBox = computed(() => {
   const dragState = getDragState().value
   
-  // 如果正在拖拽且拖拽的元素包含当前选中的元素，应用偏移
-  if (dragState && cachedBoundingBox.value) {
+  // 如果正在拖拽且拖拽的元素包含当前选中的元素
+  if (dragState) {
     const isDraggingSelected = dragState.elementIds.some(id => selectedIds.value.includes(id))
     if (isDraggingSelected) {
-      return {
-        x: cachedBoundingBox.value.x + dragState.offset.x,
-        y: cachedBoundingBox.value.y + dragState.offset.y,
-        width: cachedBoundingBox.value.width,
-        height: cachedBoundingBox.value.height
+      // 优先使用全局拖拽状态中的初始边界框（避免 watch 延迟问题）
+      const baseBox = dragState.initialBoundingBox || cachedBoundingBox.value
+      if (baseBox) {
+        return {
+          x: baseBox.x + dragState.offset.x,
+          y: baseBox.y + dragState.offset.y,
+          width: baseBox.width,
+          height: baseBox.height
+        }
       }
     }
   }
@@ -148,6 +144,9 @@ const boundingBox = computed(() => {
 // 开始拖拽
 const startDrag = (event: MouseEvent) => {
   if (selectedIds.value.length === 0) return
+  
+  // 立即同步计算边界框，确保拖拽开始时位置正确
+  cachedBoundingBox.value = calculateBoundingBox()
   
   isDragging.value = true
   dragStartPos.value = { x: event.clientX, y: event.clientY }
@@ -248,10 +247,6 @@ onUnmounted(() => {
   if (animationFrameId !== null) {
     cancelAnimationFrame(animationFrameId)
     animationFrameId = null
-  }
-  if (updateTimer !== null) {
-    cancelAnimationFrame(updateTimer)
-    updateTimer = null
   }
   document.removeEventListener('mousemove', onDrag)
   document.removeEventListener('mouseup', stopDrag)
