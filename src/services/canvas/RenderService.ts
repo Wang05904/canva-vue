@@ -30,7 +30,9 @@ export class RenderService {
     await this.app.init({
       background: '#ffffff',
       resizeTo: container,
-      antialias: true
+      antialias: true,
+      resolution: window.devicePixelRatio || 1,  // 支持高 DPI 屏幕（Retina）
+      autoDensity: true  // 自动调整 CSS 尺寸以匹配分辨率
     })
 
     container.appendChild(this.app.canvas)

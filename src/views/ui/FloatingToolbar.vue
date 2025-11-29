@@ -1,6 +1,6 @@
 <template>
   <div
-    v-if="selectedElement && selectedElement.type === 'shape' && !selectionStore.isMultiSelect && (currentTool === 'select')"
+    v-if="selectedElement && selectedElement.type === 'shape' && !selectionStore.isMultiSelect && (currentTool === 'select') && !isDragging"
     class="floating-toolbar"
     :style="toolbarStyle"
     @mousedown.stop
@@ -100,10 +100,18 @@
 import { useCanvasStore } from '@/stores/canvas'
 import { useElementsStore } from '@/stores/elements'
 import { useSelectionStore } from '@/stores/selection'
+import { useDragState } from '@/composables/useDragState'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 const selectionStore = useSelectionStore()
 const elementsStore = useElementsStore()
+const { getDragState } = useDragState()
+
+// 监听拖拽状态
+const isDragging = computed(() => {
+  const dragState = getDragState().value
+  return dragState?.isDragging || false
+})
 
 // 预设颜色
 const presetColors = [

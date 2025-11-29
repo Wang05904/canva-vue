@@ -1,7 +1,7 @@
 <template>
   <!-- 只在选中图片元素时显示 -->
   <div
-    v-if="selectedImage && !selectionStore.isMultiSelect && currentTool === 'select'"
+    v-if="selectedImage && !selectionStore.isMultiSelect && currentTool === 'select' && !isDragging"
     class="image-toolbar"
     :style="toolbarStyle"
     @mousedown.stop
@@ -130,11 +130,19 @@ import { computed } from 'vue'
 import { useElementsStore } from '@/stores/elements'
 import { useSelectionStore } from '@/stores/selection'
 import { useCanvasStore } from '@/stores/canvas'
+import { useDragState } from '@/composables/useDragState'
 import type { ImageElement, SimpleFilterType } from '@/cores/types/element'
 
 const elementsStore = useElementsStore()
 const selectionStore = useSelectionStore()
 const canvasStore = useCanvasStore()
+const { getDragState } = useDragState()
+
+// 监听拖拽状态
+const isDragging = computed(() => {
+  const dragState = getDragState().value
+  return dragState?.isDragging || false
+})
 
 // 当前工具
 const currentTool = computed(() => canvasStore.currentTool)
