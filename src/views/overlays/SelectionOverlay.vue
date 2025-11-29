@@ -120,7 +120,7 @@ watch(
 // 实际显示的边界框（拖拽时应用全局偏移）
 const boundingBox = computed(() => {
   const dragState = getDragState().value
-  
+
   // 如果正在拖拽且拖拽的元素包含当前选中的元素
   if (dragState) {
     const isDraggingSelected = dragState.elementIds.some(id => selectedIds.value.includes(id))
@@ -137,34 +137,34 @@ const boundingBox = computed(() => {
       }
     }
   }
-  
+
   return cachedBoundingBox.value
 })
 
 // 开始拖拽
 const startDrag = (event: MouseEvent) => {
   if (selectedIds.value.length === 0) return
-  
+
   // 立即同步计算边界框，确保拖拽开始时位置正确
   cachedBoundingBox.value = calculateBoundingBox()
-  
+
   isDragging.value = true
   dragStartPos.value = { x: event.clientX, y: event.clientY }
   totalOffset.value = { x: 0, y: 0 }
-  
+
   // 通知全局拖拽状态
   startGlobalDrag(selectedIds.value)
-  
+
   // 添加拖拽类以启用性能优化
   const boxRef = selectedIds.value.length === 1 ? singleBoxRef.value : multiBoxRef.value
   if (boxRef) {
     boxRef.classList.add('dragging')
   }
-  
+
   // 添加全局事件监听
   document.addEventListener('mousemove', onDrag)
   document.addEventListener('mouseup', stopDrag)
-  
+
   // 阻止默认行为和事件冒泡
   event.preventDefault()
   event.stopPropagation()
@@ -173,21 +173,21 @@ const startDrag = (event: MouseEvent) => {
 // 拖拽中 - 使用 RAF 节流 + 直接 DOM 操作
 const onDrag = (event: MouseEvent) => {
   if (!isDragging.value || !cachedBoundingBox.value) return
-  
+
   // 计算累计偏移量
   const dx = event.clientX - dragStartPos.value.x
   const dy = event.clientY - dragStartPos.value.y
-  
+
   totalOffset.value = { x: dx, y: dy }
-  
+
   // 立即更新全局拖拽偏移
   updateGlobalDragOffset({ x: dx, y: dy })
-  
+
   // 使用 RAF 节流
   if (animationFrameId !== null) {
     return // 已有待处理的帧，跳过
   }
-  
+
   animationFrameId = requestAnimationFrame(() => {
     // 直接更新选中框 DOM，使用 translate3d 启用 GPU 加速
     const boxRef = selectedIds.value.length === 1 ? singleBoxRef.value : multiBoxRef.value
@@ -196,12 +196,12 @@ const onDrag = (event: MouseEvent) => {
       const newY = cachedBoundingBox.value.y + totalOffset.value.y
       boxRef.style.transform = `translate3d(${newX}px, ${newY}px, 0)`
     }
-    
+
     // 同步更新 Canvas 元素位置（直接操作 Graphics，不触发完整渲染）
     if (canvasService && selectedIds.value.length > 0) {
       syncDragPosition(selectedIds.value, totalOffset.value.x, totalOffset.value.y)
     }
-    
+
     animationFrameId = null
   })
 }
@@ -209,34 +209,34 @@ const onDrag = (event: MouseEvent) => {
 // 停止拖拽 - 此时才更新 Store
 const stopDrag = () => {
   if (!isDragging.value) return
-  
+
   // 取消待处理的动画帧
   if (animationFrameId !== null) {
     cancelAnimationFrame(animationFrameId)
     animationFrameId = null
   }
-  
+
   // 移除拖拽类
   const boxRef = selectedIds.value.length === 1 ? singleBoxRef.value : multiBoxRef.value
   if (boxRef) {
     boxRef.classList.remove('dragging')
   }
-  
+
   // 应用最终偏移到 Store
   if ((Math.abs(totalOffset.value.x) > 1 || Math.abs(totalOffset.value.y) > 1) && selectedIds.value.length > 0) {
     elementsStore.moveElements(selectedIds.value, totalOffset.value.x, totalOffset.value.y)
     elementsStore.saveToLocal()
-    
+
     // 更新缓存的边界框
     cachedBoundingBox.value = calculateBoundingBox()
   }
-  
+
   isDragging.value = false
   totalOffset.value = { x: 0, y: 0 }
-  
+
   // 结束全局拖拽状态
   endGlobalDrag()
-  
+
   // 移除全局事件监听
   document.removeEventListener('mousemove', onDrag)
   document.removeEventListener('mouseup', stopDrag)

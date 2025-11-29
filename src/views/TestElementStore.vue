@@ -62,8 +62,8 @@
     <div style="background: #f5f5f5; padding: 12px; border-radius: 4px; margin: 12px 0;">
       <h4 style="margin-top: 0;">📋 历史栈信息</h4>
       <p style="margin: 4px 0; font-size: 12px;">
-        <strong>栈大小:</strong> {{ historyStore.stack.length }} | 
-        <strong>当前指针:</strong> {{ historyStore.index }} | 
+        <strong>栈大小:</strong> {{ historyService.stack.length }} | 
+        <strong>当前指针:</strong> {{ historyService.index }} | 
         <strong>元素数量:</strong> {{ elements.length }}
       </p>
       <p style="margin: 4px 0; font-size: 12px;">
@@ -82,12 +82,11 @@ import { onMounted, onUnmounted, ref, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useElementsStore } from '@/stores/elements'
 import { useSelectionStore } from '@/stores/selection'
-import { useHistoryStore } from '@/stores/history'
+import { historyService } from '@/services'
 import type { Element } from '@/cores/types/element'
 
 const elementsStore = useElementsStore()
 const selectionStore = useSelectionStore()
-const historyStore = useHistoryStore()
 
 onMounted(() => {
   elementsStore.loadFromLocal()
@@ -97,8 +96,8 @@ const { elements } = storeToRefs(elementsStore)
 const { selectedIds } = storeToRefs(selectionStore)
 
 const hasSelection = computed(() => selectedIds.value.length > 0)
-const canUndo = computed(() => historyStore.index > 0)
-const canRedo = computed(() => historyStore.index < historyStore.stack.length - 1)
+const canUndo = computed(() => historyService.index > 0)
+const canRedo = computed(() => historyService.index < historyService.stack.length - 1)
 
 // ============ 单选操作 ============
 
@@ -280,11 +279,19 @@ const elStyle = (el: Element) => ({
 
 // ============ 撤销/重做 ============
 const undo = () => {
-  elementsStore.undo()
+  const snapshot = historyService.undo()
+  if (snapshot) {
+    elementsStore.elements = snapshot
+    elementsStore.saveToLocal()
+  }
 }
 
 const redo = () => {
-  elementsStore.redo()
+  const snapshot = historyService.redo()
+  if (snapshot) {
+    elementsStore.elements = snapshot
+    elementsStore.saveToLocal()
+  }
 }
 </script>
 
