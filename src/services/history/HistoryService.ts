@@ -12,58 +12,65 @@ import { useHistoryStore } from '@/stores/history'
  * 服务对象：为Composables层提供历史操作支持
  */
 export class HistoryService {
-  private historyStore = useHistoryStore()
+  // lazy access to the pinia store to avoid calling useHistoryStore() at module load time
+  private get store() {
+    return useHistoryStore()
+  }
 
   constructor() {}
 
   pushSnapshot(snapshot: AnyElement[]) {
-    this.historyStore.pushSnapshot(snapshot)
+    this.store.pushSnapshot(snapshot)
   }
 
   beginBatch() {
-    this.historyStore.beginBatch()
+    this.store.beginBatch()
   }
 
   endBatch() {
-    this.historyStore.endBatch()
+    this.store.endBatch()
   }
 
   /**
    * 执行撤销并返回快照（如果有）
    */
   undo(): AnyElement[] | null {
-    return this.historyStore.undo()
+    return this.store.undo()
   }
 
   /**
    * 执行重做并返回快照（如果有）
    */
   redo(): AnyElement[] | null {
-    return this.historyStore.redo()
+    return this.store.redo()
   }
 
   getCurrent(): AnyElement[] | null {
-    return this.historyStore.getCurrent()
+    return this.store.getCurrent()
   }
 
   canUndo(): boolean {
-    return this.historyStore.index > 0
+    return this.store.index > 0
   }
 
   canRedo(): boolean {
-    return this.historyStore.index < this.historyStore.stack.length - 1
+    return this.store.index < this.store.stack.length - 1
   }
 
   clear() {
-    this.historyStore.clear()
+    this.store.clear()
   }
 
   // Expose reactive store properties for consumers
   get stack(): AnyElement[][] {
-    return this.historyStore.stack
+    return this.store.stack
   }
 
   get index(): number {
-    return this.historyStore.index
+    return this.store.index
   }
 }
+
+// singleton instance
+export const historyService = new HistoryService()
+export default historyService
