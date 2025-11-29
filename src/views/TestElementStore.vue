@@ -62,8 +62,6 @@
     <div style="background: #f5f5f5; padding: 12px; border-radius: 4px; margin: 12px 0;">
       <h4 style="margin-top: 0;">📋 历史栈信息</h4>
       <p style="margin: 4px 0; font-size: 12px;">
-        <strong>栈大小:</strong> {{ historyService.stack.length }} | 
-        <strong>当前指针:</strong> {{ historyService.index }} | 
         <strong>元素数量:</strong> {{ elements.length }}
       </p>
       <p style="margin: 4px 0; font-size: 12px;">
@@ -83,7 +81,7 @@ import { storeToRefs } from 'pinia'
 import { useElementsStore } from '@/stores/elements'
 import { useSelectionStore } from '@/stores/selection'
 import { historyService } from '@/services'
-import type { Element } from '@/cores/types/element'
+import type { AnyElement } from '@/cores/types/element'
 
 const elementsStore = useElementsStore()
 const selectionStore = useSelectionStore()
@@ -96,8 +94,8 @@ const { elements } = storeToRefs(elementsStore)
 const { selectedIds } = storeToRefs(selectionStore)
 
 const hasSelection = computed(() => selectedIds.value.length > 0)
-const canUndo = computed(() => historyService.index > 0)
-const canRedo = computed(() => historyService.index < historyService.stack.length - 1)
+const canUndo = computed(() => historyService.canUndo())
+const canRedo = computed(() => historyService.canRedo())
 
 // ============ 单选操作 ============
 
@@ -108,6 +106,14 @@ const add = () => {
     width: 120,
     height: 80,
     fillColor: `hsl(${Math.random() * 360}, 70%, 60%)`,
+    rotation: 0,
+    opacity: 1,
+    visible: true,
+    locked: false,
+    zIndex: 0,
+    shapeType: 'rectangle',
+    strokeWidth: 1,
+    strokeColor: '#000000'
   })
   if (id) selectionStore.selectElement(id)
 }
@@ -187,7 +193,7 @@ const dragging = ref<{ ids: string[]; startX: number; startY: number } | null>(
 const isDragging = ref(false)
 const canvasEl = ref<HTMLElement | null>(null)
 
-function onElementClick(el: Element, event: MouseEvent) {
+function onElementClick(el: AnyElement, event: MouseEvent) {
   event.stopPropagation()
   
   // 如果是拖拽产生的 click，忽略
@@ -207,7 +213,7 @@ function onElementClick(el: Element, event: MouseEvent) {
   }
 }
 
-function onElementMouseDown(el: Element, event: MouseEvent) {
+function onElementMouseDown(el: AnyElement, event: MouseEvent) {
   event.stopPropagation()
 
   // 如果点击的元素未被选中，先选中它
@@ -268,7 +274,7 @@ onUnmounted(() => {
   window.removeEventListener('mouseup', onPointerUp)
 })
 
-const elStyle = (el: Element) => ({
+const elStyle = (el: AnyElement) => ({
   left: `${el.x}px`,
   top: `${el.y}px`,
   width: `${el.width}px`,
@@ -279,19 +285,13 @@ const elStyle = (el: Element) => ({
 
 // ============ 撤销/重做 ============
 const undo = () => {
-  const snapshot = historyService.undo()
-  if (snapshot) {
-    elementsStore.elements = snapshot
-    elementsStore.saveToLocal()
-  }
+  historyService.undo()
+  // 由于historyService内部会处理状态更新，这里不需要手动设置
 }
 
 const redo = () => {
-  const snapshot = historyService.redo()
-  if (snapshot) {
-    elementsStore.elements = snapshot
-    elementsStore.saveToLocal()
-  }
+  historyService.redo()
+  // 由于historyService内部会处理状态更新，这里不需要手动设置
 }
 </script>
 
