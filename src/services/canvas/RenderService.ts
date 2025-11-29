@@ -15,7 +15,7 @@ export class RenderService {
   private graphicMap = new Map<string, Graphics>()
   private graphicToElementId = new WeakMap<Graphics, string>()
   private container: HTMLElement | null = null
-  
+
   // 性能优化相关
   private elementSnapshots = new Map<string, string>() // 元素快照，用于脏检查
   private renderFrameId: number | null = null // RAF ID
@@ -25,7 +25,7 @@ export class RenderService {
    */
   async initialize(container: HTMLElement): Promise<Application> {
     this.container = container
-    
+
     this.app = new Application()
     await this.app.init({
       background: '#ffffff',
@@ -74,7 +74,6 @@ export class RenderService {
     if (!this.app) return
 
     const currentElementIds = new Set(elements.map(el => el.id))
-    
     // 删除不再存在的元素
     this.graphicMap.forEach((graphic, id) => {
       if (!currentElementIds.has(id)) {
@@ -82,13 +81,13 @@ export class RenderService {
         this.elementSnapshots.delete(id)
       }
     })
-    
+
     // 渲染或更新元素
     elements.forEach(element => {
       // 脏检查：只有元素发生变化时才渲染
       const snapshot = this.createElementSnapshot(element)
       const lastSnapshot = this.elementSnapshots.get(element.id)
-      
+
       if (snapshot !== lastSnapshot) {
         this.renderElement(element)
         this.elementSnapshots.set(element.id, snapshot)
@@ -102,7 +101,7 @@ export class RenderService {
   private createElementSnapshot(element: AnyElement): string {
     // 只序列化影响渲染的关键属性
     let key = `${element.type}|${element.x}|${element.y}|${element.width}|${element.height}|${element.rotation || 0}|${element.opacity}|${element.visible}`
-    
+
     if (element.type === 'shape') {
       const shape = element as ShapeElement
       key += `|${shape.shapeType}|${shape.fillColor}|${shape.strokeColor}|${shape.strokeWidth}|${shape.borderRadius || 0}`
@@ -110,7 +109,7 @@ export class RenderService {
       // 文本元素的关键属性
       key += `|${element.content}|${element.fontSize}|${element.color}|${element.fontFamily}`
     }
-    
+
     return key
   }
 
@@ -124,7 +123,7 @@ export class RenderService {
     if (element.type === 'image') return
 
     let graphic = this.graphicMap.get(element.id)
-    
+
     if (graphic) {
       // 更新现有元素
       this.updateGraphic(graphic, element)
@@ -143,16 +142,16 @@ export class RenderService {
 
     const graphic = new Graphics()
     this.drawShape(graphic, element)
-    
+
     graphic.x = element.x
     graphic.y = element.y
     graphic.eventMode = 'static'
     graphic.cursor = 'pointer'
-    
+
     this.app.stage.addChild(graphic)
     this.graphicMap.set(element.id, graphic)
     this.graphicToElementId.set(graphic, element.id)
-    
+
     return graphic
   }
 
@@ -169,36 +168,36 @@ export class RenderService {
    * 绘制形状
    */
   private drawShape(graphic: Graphics, element: AnyElement): void {
-        graphic.clear()
-        
-        if (element.type === 'shape') {
-            const shapeElement = element as ShapeElement
-            
-            if (shapeElement.shapeType === 'circle' && element.width === element.height) {
-                // 圆形
-                const radius = element.width / 2
-                graphic.circle(radius, radius, radius)
-            } else if (shapeElement.shapeType === 'triangle') {
-                // 三角形 - 绘制等腰三角形，底边为width，高为height
-                graphic.moveTo(element.width / 2, 0)  // 顶点
-                graphic.lineTo(0, element.height)     // 左下角
-                graphic.lineTo(element.width, element.height)  // 右下角
-                graphic.closePath()
-            } else {
-                // 矩形或其他形状
-                graphic.rect(0, 0, element.width, element.height)
-            }
-            graphic.fill(element.fillColor || '#000000')
-            
-            // 添加边框
-            if (element.strokeWidth && element.strokeWidth > 0) {
-                graphic.stroke({
-                    width: element.strokeWidth,
-                    color: element.strokeColor || '#000000'
-                })
-            }
-        }
+    graphic.clear()
+
+    if (element.type === 'shape') {
+      const shapeElement = element as ShapeElement
+
+      if (shapeElement.shapeType === 'circle' && element.width === element.height) {
+        // 圆形
+        const radius = element.width / 2
+        graphic.circle(radius, radius, radius)
+      } else if (shapeElement.shapeType === 'triangle') {
+        // 三角形 - 绘制等腰三角形，底边为width，高为height
+        graphic.moveTo(element.width / 2, 0)  // 顶点
+        graphic.lineTo(0, element.height)     // 左下角
+        graphic.lineTo(element.width, element.height)  // 右下角
+        graphic.closePath()
+      } else {
+        // 矩形或其他形状
+        graphic.rect(0, 0, element.width, element.height)
+      }
+      graphic.fill(element.fillColor || '#000000')
+
+      // 添加边框
+      if (element.strokeWidth && element.strokeWidth > 0) {
+        graphic.stroke({
+          width: element.strokeWidth,
+          color: element.strokeColor || '#000000'
+        })
+      }
     }
+  }
 
   /**
    * 删除Graphics对象（清理快照缓存）
@@ -264,7 +263,7 @@ export class RenderService {
   }
 
   /**
-   * 清理资源（优化：清理所有缓存）
+   * 清理资源
    */
   destroy(): void {
     // 取消待处理的渲染
@@ -279,10 +278,10 @@ export class RenderService {
       graphic.destroy()
     })
     this.graphicMap.clear()
-    
+
     // 清理快照缓存
     this.elementSnapshots.clear()
-    
+
     // 销毁应用
     if (this.app) {
       this.app.destroy(true, { children: true })
