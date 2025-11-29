@@ -51,7 +51,7 @@ export class ToolService {
    */
     isDrawingTool(tool?: ToolType): boolean {
         const t = tool || this.currentTool
-        return t === 'rectangle' || t === 'circle' || t === 'triangle'
+        return t === 'rectangle' || t === 'circle' || t === 'triangle' || t === 'text'
     }
 
   /**

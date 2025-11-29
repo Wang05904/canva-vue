@@ -233,7 +233,7 @@ export class EventService {
         }
       } else {
         // 点击：根据工具类型处理
-        if (currentTool === 'rectangle' || currentTool === 'circle' || currentTool === 'triangle') {
+        if (currentTool === 'rectangle' || currentTool === 'circle' || currentTool === 'triangle' || currentTool === 'text') {
           // 绘图工具：创建元素
           if (this.handlers.onToolCreate) {
             this.handlers.onToolCreate(currentPos.x, currentPos.y, currentTool)

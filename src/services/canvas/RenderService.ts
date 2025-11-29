@@ -90,10 +90,7 @@ export class RenderService {
       const lastSnapshot = this.elementSnapshots.get(element.id)
       
       if (snapshot !== lastSnapshot) {
-        const graphic = this.renderElement(element)
-        if (graphic) {
-          graphic.visible = element.visible !== false
-        }
+        this.renderElement(element)
         this.elementSnapshots.set(element.id, snapshot)
       }
     })
@@ -112,9 +109,6 @@ export class RenderService {
     } else if (element.type === 'text') {
       // 文本元素的关键属性
       key += `|${element.content}|${element.fontSize}|${element.color}|${element.fontFamily}`
-    } else if (element.type === 'image') {
-      // 图片元素的关键属性
-      key += `|${element.src}`
     }
     
     return key
@@ -123,8 +117,11 @@ export class RenderService {
   /**
    * 渲染单个元素
    */
-  renderElement(element: AnyElement): Graphics | null {
-    if (!this.app) return null
+  renderElement(element: AnyElement): void {
+    if (!this.app) return
+
+    // 图片元素由 DOM 渲染,这里只处理形状
+    if (element.type === 'image') return
 
     let graphic = this.graphicMap.get(element.id)
     
@@ -135,8 +132,7 @@ export class RenderService {
       // 创建新元素
       graphic = this.createGraphic(element)
     }
-
-    return graphic
+    graphic.visible = element.visible !== false
   }
 
   /**
@@ -169,10 +165,10 @@ export class RenderService {
     graphic.y = element.y
   }
 
-    /**
-     * 绘制形状
-     */
-    private drawShape(graphic: Graphics, element: AnyElement): void {
+  /**
+   * 绘制形状
+   */
+  private drawShape(graphic: Graphics, element: AnyElement): void {
         graphic.clear()
         
         if (element.type === 'shape') {
@@ -214,7 +210,7 @@ export class RenderService {
       this.app.stage.removeChild(graphic)
       graphic.destroy()
       this.graphicMap.delete(elementId)
-      this.elementSnapshots.delete(elementId) // 清理快照缓存
+      this.elementSnapshots.delete(elementId)
     }
   }
 
