@@ -8,6 +8,7 @@
  */
 import { Application, Graphics, FederatedPointerEvent } from 'pixi.js'
 import type { AnyElement } from '@/cores/types/element'
+import { useDragState } from '@/composables/useDragState'
 
 /**
  * 事件处理器接口
@@ -43,8 +44,9 @@ export class EventService {
   private dragStartPos = { x: 0, y: 0 }
   private dragTargetId: string | null = null
   private getElementIdByGraphic: ((graphic: Graphics) => string | undefined) | null = null
+  private dragState = useDragState()
 
-  constructor() {}
+  constructor() { }
 
   /**
    * 设置Application实例
@@ -87,46 +89,74 @@ export class EventService {
     // 现在通过 event.target 获取实际点击的对象
     const target = event.target as Graphics
     const elementId = this.getElementIdByGraphic?.(target)
-    
+
     if (elementId) {
       // 点击到元素：开始拖拽
       this.isDragging = true
       this.dragTargetId = elementId
       this.dragStartPos = { x: event.global.x, y: event.global.y }
-      
+
       // 触发元素选中事件
       if (this.handlers.onElementSelect) {
         this.handlers.onElementSelect(elementId)
       }
+
+      // 计算并传递初始边界框给全局拖拽状态
+      const selectedIds = this.handlers.getSelectedIds?.() || []
+      const allElements = this.handlers.getAllElements?.() || []
+      const draggedIds = selectedIds.length > 1 && selectedIds.includes(elementId) ? selectedIds : [elementId]
+
+      // 计算初始边界框
+      const draggedElements = draggedIds.map(id => allElements.find(el => el.id === id)).filter(el => el != null) as AnyElement[]
+      let initialBoundingBox = null
+      if (draggedElements.length > 0) {
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+        draggedElements.forEach(el => {
+          minX = Math.min(minX, el.x)
+          minY = Math.min(minY, el.y)
+          maxX = Math.max(maxX, el.x + el.width)
+          maxY = Math.max(maxY, el.y + el.height)
+        })
+        initialBoundingBox = {
+          x: minX,
+          y: minY,
+          width: maxX - minX,
+          height: maxY - minY
+        }
+      }
+
+      // 启动全局拖拽状态
+      this.dragState.startDrag(draggedIds, initialBoundingBox)
     } else {
       // 点击到画布：开始框选
       this.isBoxSelecting = true
       this.boxStartPos = { x: event.global.x, y: event.global.y }
-      
+
       // 创建框选框
       if (!this.selectionBox && this.app) {
         this.selectionBox = new Graphics()
         this.app.stage.addChild(this.selectionBox)
       }
     }
-  }
-
-  /**
+  }  /**
    * 统一处理鼠标移动事件 
    */
   private handlePointerMove(event: FederatedPointerEvent): void {
     const currentPos = { x: event.global.x, y: event.global.y }
-    
+
     // 处理拖拽
     if (this.isDragging && this.dragTargetId) {
       const dx = currentPos.x - this.dragStartPos.x
       const dy = currentPos.y - this.dragStartPos.y
-      
+
+      // 更新全局拖拽偏移
+      this.dragState.updateDragOffset({ x: dx, y: dy })
+
       // 只有移动超过2像素才认为是拖拽（避免误触）
       if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
         const selectedIds = this.handlers.getSelectedIds?.()
         const isMultiSelect = selectedIds && selectedIds.length > 1 && selectedIds.includes(this.dragTargetId)
-        
+
         // 实时更新元素位置（拖拽预览）
         const allElements = this.handlers.getAllElements?.()
         if (allElements) {
@@ -161,7 +191,7 @@ export class EventService {
       }
       return
     }
-    
+
     // 处理框选
     if (this.isBoxSelecting && this.selectionBox) {
       const x = Math.min(this.boxStartPos.x, currentPos.x)
@@ -185,17 +215,17 @@ export class EventService {
    */
   private handlePointerUp(event: FederatedPointerEvent): void {
     const currentPos = { x: event.global.x, y: event.global.y }
-    
+
     // 处理拖拽结束
     if (this.isDragging && this.dragTargetId) {
       const dx = currentPos.x - this.dragStartPos.x
       const dy = currentPos.y - this.dragStartPos.y
-      
+
       // 只有真正移动了才触发移动事件
       if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
         const selectedIds = this.handlers.getSelectedIds?.()
         const isMultiSelect = selectedIds && selectedIds.length > 1 && selectedIds.includes(this.dragTargetId)
-        
+
         if (isMultiSelect && this.handlers.onMultiElementMove && selectedIds) {
           // 多选拖拽：移动所有选中的元素
           this.handlers.onMultiElementMove(selectedIds, dx, dy)
@@ -206,12 +236,15 @@ export class EventService {
           //console.log(`拖拽完成: 元素 ${this.dragTargetId} 移动 (${dx}, ${dy})`)
         }
       }
-      
+
+      // 结束全局拖拽状态
+      this.dragState.endDrag()
+
       this.isDragging = false
       this.dragTargetId = null
       return
     }
-    
+
     // 处理框选或画布点击
     if (this.isBoxSelecting) {
       const width = Math.abs(currentPos.x - this.boxStartPos.x)
@@ -223,7 +256,7 @@ export class EventService {
         // 拖动：框选元素
         const x = Math.min(this.boxStartPos.x, currentPos.x)
         const y = Math.min(this.boxStartPos.y, currentPos.y)
-        
+
         if (this.handlers.onBoxSelection) {
           const selectedIds = this.handlers.onBoxSelection(x, y, width, height)
           if (this.handlers.onSelectionChange) {
