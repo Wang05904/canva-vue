@@ -4,7 +4,6 @@
  * 服务对象：作为连接核心层和Composables层的桥梁，为上层提供业务逻辑支持
  */
 export * from './elements/ElementService'
-export * from './elements/TransformService'
 export * from './elements/GroupService'
 export * from './canvas/CanvasService'
 export * from './canvas/ViewportService'

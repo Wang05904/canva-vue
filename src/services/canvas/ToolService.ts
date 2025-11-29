@@ -8,7 +8,7 @@
  */
 import { Graphics, FederatedPointerEvent, Application } from 'pixi.js'
 
-export type ToolType = 'select' | 'rectangle' | 'circle' | 'triangle' | 'editor'
+export type ToolType = 'select' | 'rectangle' | 'circle' | 'triangle' | 'text'
 
 export interface ToolConfig {
   type: ToolType
@@ -133,7 +133,11 @@ export class ToolService {
                 previewSize: { width: 150, height: 150 },
                 fillColor: '#34C759'
             },
-            editor: { type: 'editor' }
+            text: {
+                type: 'text',
+                previewSize: { width: 200, height: 50 },
+                fillColor: '#000000'
+            }
         }
 
         return configs[t]
@@ -169,6 +173,13 @@ export class ToolService {
                 y: mouseY - 75,
                 width: 150,
                 height: 150
+            }
+        } else if (config.type === 'text') {
+            return {
+                x: mouseX - 100,
+                y: mouseY - 25,
+                width: 200,
+                height: 50
             }
         }
 

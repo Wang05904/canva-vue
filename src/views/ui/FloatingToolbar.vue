@@ -1,6 +1,6 @@
 <template>
   <div
-    v-if="selectedElement"
+    v-if="selectedElement && !selectionStore.isMultiSelect && (currentTool === 'select')"
     class="floating-toolbar"
     :style="toolbarStyle"
     @mousedown.stop
@@ -97,6 +97,7 @@
 </template>
 
 <script setup lang="ts">
+import { useCanvasStore } from '@/stores/canvas'
 import { useElementsStore } from '@/stores/elements'
 import { useSelectionStore } from '@/stores/selection'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
@@ -128,6 +129,10 @@ const selectedElement = computed(() => {
   if (!selectionStore.firstSelectedId) return null
   return elementsStore.getElementById(selectionStore.firstSelectedId)
 })
+
+// 当前工具
+const canvasStore = useCanvasStore()
+const currentTool = computed(() => canvasStore.currentTool)
 
 // 计算工具栏位置（显示在元素上方）
 const toolbarStyle = computed(() => {

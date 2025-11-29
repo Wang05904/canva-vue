@@ -13,7 +13,12 @@ import type { AnyElement, ShapeElement } from '@/cores/types/element'
 export class RenderService {
   private app: Application | null = null
   private graphicMap = new Map<string, Graphics>()
+  private graphicToElementId = new WeakMap<Graphics, string>()
   private container: HTMLElement | null = null
+  
+  // 性能优化相关
+  private elementSnapshots = new Map<string, string>() // 元素快照，用于脏检查
+  private renderFrameId: number | null = null // RAF ID
 
   /**
    * 初始化渲染引擎
@@ -45,9 +50,27 @@ export class RenderService {
   }
 
   /**
-   * 渲染元素列表
+   * 渲染元素列表（使用RAF节流 + 脏检查）
    */
   renderElements(elements: AnyElement[]): void {
+    if (!this.app) return
+
+    // 如果已经有待处理的渲染，取消之前的
+    if (this.renderFrameId !== null) {
+      cancelAnimationFrame(this.renderFrameId)
+    }
+
+    // 使用 RAF 批量处理渲染
+    this.renderFrameId = requestAnimationFrame(() => {
+      this.renderElementsImmediate(elements)
+      this.renderFrameId = null
+    })
+  }
+
+  /**
+   * 立即渲染元素列表（增量更新 + 脏检查）
+   */
+  private renderElementsImmediate(elements: AnyElement[]): void {
     if (!this.app) return
 
     const currentElementIds = new Set(elements.map(el => el.id))
@@ -56,13 +79,45 @@ export class RenderService {
     this.graphicMap.forEach((graphic, id) => {
       if (!currentElementIds.has(id)) {
         this.removeGraphic(id)
+        this.elementSnapshots.delete(id)
       }
     })
     
     // 渲染或更新元素
     elements.forEach(element => {
-      this.renderElement(element)
+      // 脏检查：只有元素发生变化时才渲染
+      const snapshot = this.createElementSnapshot(element)
+      const lastSnapshot = this.elementSnapshots.get(element.id)
+      
+      if (snapshot !== lastSnapshot) {
+        const graphic = this.renderElement(element)
+        if (graphic) {
+          graphic.visible = element.visible !== false
+        }
+        this.elementSnapshots.set(element.id, snapshot)
+      }
     })
+  }
+
+  /**
+   * 创建元素快照（用于脏检查）
+   */
+  private createElementSnapshot(element: AnyElement): string {
+    // 只序列化影响渲染的关键属性
+    let key = `${element.type}|${element.x}|${element.y}|${element.width}|${element.height}|${element.rotation || 0}|${element.opacity}|${element.visible}`
+    
+    if (element.type === 'shape') {
+      const shape = element as ShapeElement
+      key += `|${shape.shapeType}|${shape.fillColor}|${shape.strokeColor}|${shape.strokeWidth}|${shape.borderRadius || 0}`
+    } else if (element.type === 'text') {
+      // 文本元素的关键属性
+      key += `|${element.content}|${element.fontSize}|${element.color}|${element.fontFamily}`
+    } else if (element.type === 'image') {
+      // 图片元素的关键属性
+      key += `|${element.src}`
+    }
+    
+    return key
   }
 
   /**
@@ -100,6 +155,7 @@ export class RenderService {
     
     this.app.stage.addChild(graphic)
     this.graphicMap.set(element.id, graphic)
+    this.graphicToElementId.set(graphic, element.id)
     
     return graphic
   }
@@ -149,7 +205,7 @@ export class RenderService {
     }
 
   /**
-   * 删除Graphics对象
+   * 删除Graphics对象（清理快照缓存）
    */
   removeGraphic(elementId: string): void {
     const graphic = this.graphicMap.get(elementId)
@@ -158,6 +214,7 @@ export class RenderService {
       this.app.stage.removeChild(graphic)
       graphic.destroy()
       this.graphicMap.delete(elementId)
+      this.elementSnapshots.delete(elementId) // 清理快照缓存
     }
   }
 
@@ -169,6 +226,34 @@ export class RenderService {
   }
 
   /**
+   * 直接更新元素位置（拖拽优化：跳过完整渲染流程）
+   * @param elementId 元素ID
+   * @param x 新的x坐标
+   * @param y 新的y坐标
+   */
+  updateElementPosition(elementId: string, x: number, y: number): void {
+    const graphic = this.graphicMap.get(elementId)
+    if (graphic) {
+      graphic.x = x
+      graphic.y = y
+    }
+  }
+
+  /**
+   * 批量更新元素位置（拖拽优化：跳过完整渲染流程）
+   * @param updates 元素位置更新列表 { id, x, y }[]
+   */
+  batchUpdatePositions(updates: Array<{ id: string; x: number; y: number }>): void {
+    updates.forEach(({ id, x, y }) => {
+      const graphic = this.graphicMap.get(id)
+      if (graphic) {
+        graphic.x = x
+        graphic.y = y
+      }
+    })
+  }
+
+  /**
    * 获取所有Graphics对象
    */
   getAllGraphics(): Map<string, Graphics> {
@@ -176,15 +261,33 @@ export class RenderService {
   }
 
   /**
-   * 清理资源
+   * 通过Graphics获取元素ID
+   */
+  getElementIdByGraphic(graphic: Graphics): string | undefined {
+    return this.graphicToElementId.get(graphic)
+  }
+
+  /**
+   * 清理资源（优化：清理所有缓存）
    */
   destroy(): void {
+    // 取消待处理的渲染
+    if (this.renderFrameId !== null) {
+      cancelAnimationFrame(this.renderFrameId)
+      this.renderFrameId = null
+    }
+
+    // 清理Graphics对象
     this.graphicMap.forEach((graphic) => {
       graphic.removeAllListeners()
       graphic.destroy()
     })
     this.graphicMap.clear()
     
+    // 清理快照缓存
+    this.elementSnapshots.clear()
+    
+    // 销毁应用
     if (this.app) {
       this.app.destroy(true, { children: true })
       this.app = null

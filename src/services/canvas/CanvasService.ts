@@ -41,6 +41,11 @@ export class CanvasService {
     // 设置事件处理器
     this.eventService.setHandlers(handlers)
 
+    // 设置元素ID获取函数
+    this.eventService.setElementIdGetter((graphic) => 
+      this.renderService.getElementIdByGraphic(graphic)
+    )
+
     // 绑定Stage事件
     this.eventService.bindStageEvents()
 
@@ -64,14 +69,6 @@ export class CanvasService {
    */
   renderElements(elements: AnyElement[]): void {
     this.renderService.renderElements(elements)
-
-    // 为新创建的元素绑定事件
-    elements.forEach(element => {
-      const graphic = this.renderService.getGraphic(element.id)
-      if (graphic && !graphic.listenerCount('pointerdown')) {
-        this.eventService.bindElementEvents(graphic, element)
-      }
-    })
   }
 
   /**
@@ -107,6 +104,20 @@ export class CanvasService {
    */
   getRenderService(): RenderService {
     return this.renderService
+  }
+
+  /**
+   * 直接更新元素位置（拖拽优化）
+   */
+  updateElementPosition(elementId: string, x: number, y: number): void {
+    this.renderService.updateElementPosition(elementId, x, y)
+  }
+
+  /**
+   * 批量更新元素位置（拖拽优化）
+   */
+  batchUpdatePositions(updates: Array<{ id: string; x: number; y: number }>): void {
+    this.renderService.batchUpdatePositions(updates)
   }
 
   /**

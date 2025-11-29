@@ -12,14 +12,19 @@
     "preview": "vite preview",
     "build-only": "vite build",
     "type-check": "vue-tsc --build",
-    "lint": "eslint . --fix --cache"
+    "lint": "eslint . --fix --cache",
+    "prepare": "husky"
   },
   "dependencies": {
+    "@tiptap/extension-color": "^3.11.0",
+    "@tiptap/extension-text-style": "^3.11.0",
     "@tiptap/starter-kit": "^3.11.0",
     "@tiptap/vue-3": "^3.11.0",
     "pinia": "^3.0.3",
     "pixi.js": "^8.14.3",
-    "vue": "^3.5.22"
+    "stats.js": "^0.17.0",
+    "vue": "^3.5.22",
+    "vue-router": "^4.6.3"
   },
   "devDependencies": {
     "@tsconfig/node22": "^22.0.2",
@@ -29,6 +34,7 @@
     "@vue/tsconfig": "^0.8.1",
     "eslint": "^9.37.0",
     "eslint-plugin-vue": "~10.5.0",
+    "husky": "^9.1.7",
     "jiti": "^2.6.1",
     "npm-run-all2": "^8.0.4",
     "typescript": "~5.9.3",

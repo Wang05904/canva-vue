@@ -41,12 +41,10 @@ export function useCanvas() {
       // 单个元素移动事件
       onElementMove: (elementId: string, dx: number, dy: number) => {
         elementsStore.moveElement(elementId, dx, dy)
-        console.log(`移动元素 ${elementId}: (${dx}, ${dy})`)
       },
       // 多个元素移动事件（多选拖拽）
       onMultiElementMove: (elementIds: string[], dx: number, dy: number) => {
         elementsStore.moveElements(elementIds, dx, dy)
-        console.log(`批量移动 ${elementIds.length} 个元素: (${dx}, ${dy})`)
       },
       // 框选事件 - 检测框选区域内的元素
       onBoxSelection: (x: number, y: number, width: number, height: number) => {
@@ -78,14 +76,8 @@ export function useCanvas() {
     // 首次渲染元素
     canvasService.renderElements(elementsStore.elements)
 
-    // 监听元素变化，重新渲染
+    // 监听元素数组引用变化（添加/删除/修改元素时 store 会创建新数组）
     watch(() => elementsStore.elements, () => {
-      canvasService.renderElements(elementsStore.elements)
-    }, { deep: true })
-
-    // 监听选中状态变化
-    watch(() => selectionStore.selectedIds, () => {
-      // 重新渲染以更新选中样式
       canvasService.renderElements(elementsStore.elements)
     })
 

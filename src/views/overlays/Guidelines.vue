@@ -11,7 +11,7 @@
 import { defineComponent } from 'vue'
 
 export default defineComponent({
-  name: 'Guidelines',
+  name: 'GuideLines',
   setup() {
     return {}
   }

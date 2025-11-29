@@ -8,6 +8,12 @@ importers:
 
   .:
     dependencies:
+      '@tiptap/extension-color':
+        specifier: ^3.11.0
+        version: 3.11.0(@tiptap/extension-text-style@3.11.0(@tiptap/core@3.11.0(@tiptap/pm@3.11.0)))
+      '@tiptap/extension-text-style':
+        specifier: ^3.11.0
+        version: 3.11.0(@tiptap/core@3.11.0(@tiptap/pm@3.11.0))
       '@tiptap/starter-kit':
         specifier: ^3.11.0
         version: 3.11.0
@@ -20,9 +26,15 @@ importers:
       pixi.js:
         specifier: ^8.14.3
         version: 8.14.3
+      stats.js:
+        specifier: ^0.17.0
+        version: 0.17.0
       vue:
         specifier: ^3.5.22
         version: 3.5.24(typescript@5.9.3)
+      vue-router:
+        specifier: ^4.6.3
+        version: 4.6.3(vue@3.5.24(typescript@5.9.3))
     devDependencies:
       '@tsconfig/node22':
         specifier: ^22.0.2
@@ -45,6 +57,9 @@ importers:
       eslint-plugin-vue:
         specifier: ~10.5.0
         version: 10.5.1(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.1(jiti@2.6.1))(vue-eslint-parser@10.2.0(eslint@9.39.1(jiti@2.6.1)))
+      husky:
+        specifier: ^9.1.7
+        version: 9.1.7
       jiti:
         specifier: ^2.6.1
         version: 2.6.1
@@ -612,6 +627,11 @@ packages:
     peerDependencies:
       '@tiptap/core': ^3.11.0
 
+  '@tiptap/extension-color@3.11.0':
+    resolution: {integrity: sha512-4H+3nyheow0tBt+q/Pkkm/pR/F6vUAdKZaq1HtWFi7LcFzCYxdB3Si625EparKO3kMvGvULjdd+/zt68NS7Acw==}
+    peerDependencies:
+      '@tiptap/extension-text-style': ^3.11.0
+
   '@tiptap/extension-document@3.11.0':
     resolution: {integrity: sha512-N2G3cwL2Dtur/CgD/byJmFx9T5no6fTO/U462VP3rthQYrRA1AB3TCYqtlwJkmyoxRTNd4qIg4imaPl8ej6Heg==}
     peerDependencies:
@@ -689,6 +709,11 @@ packages:
 
   '@tiptap/extension-strike@3.11.0':
     resolution: {integrity: sha512-XVP/WMYLrqLBfUsGPu2H9MrOUZLhGUaxtZ3hSRffDi/lsw53x/coZ9eO0FxOB9R7z2ksHWmticIs+0YnKt9LNQ==}
+    peerDependencies:
+      '@tiptap/core': ^3.11.0
+
+  '@tiptap/extension-text-style@3.11.0':
+    resolution: {integrity: sha512-q8RM4gzmdnUHosL65SIJzTTmL29bm+3hNPdloOuJyLd4sTYs2q+cues5mH5/n85HqX3+TvKrfrTVb1Yj62E1NA==}
     peerDependencies:
       '@tiptap/core': ^3.11.0
 
@@ -851,6 +876,9 @@ packages:
 
   '@vue/compiler-ssr@3.5.24':
     resolution: {integrity: sha512-trOvMWNBMQ/odMRHW7Ae1CdfYx+7MuiQu62Jtu36gMLXcaoqKvAyh+P73sYG9ll+6jLB6QPovqoKGGZROzkFFg==}
+
+  '@vue/devtools-api@6.6.4':
+    resolution: {integrity: sha512-sGhTPMuXqZ1rVOk32RylztWkfXTRhuS7vgAKv0zjqk8gbsHkJ7xfFf+jbySxt7tWObEJwyKaHMikV/WGDiQm8g==}
 
   '@vue/devtools-api@7.7.9':
     resolution: {integrity: sha512-kIE8wvwlcZ6TJTbNeU2HQNtaxLx3a84aotTITUuL/4bzfPxzajGBOoqjMhwZJ8L9qFYDU/lAYMEEm11dnZOD6g==}
@@ -1221,6 +1249,11 @@ packages:
 
   hookable@5.5.3:
     resolution: {integrity: sha512-Yc+BQe8SvoXH1643Qez1zqLRmbA5rCL+sSmk6TVos0LWVfNIB7PGncdlId77WzLGSIB5KaWgTaNTs2lNVEI6VQ==}
+
+  husky@9.1.7:
+    resolution: {integrity: sha512-5gs5ytaNjBrh5Ow3zrvdUUY+0VxIuWVL4i9irt6friV+BqdCfmV11CQTWMiBYWHbXhco+J1kHfTOUkePhCDvMA==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   ignore@5.3.2:
     resolution: {integrity: sha512-hsBTNUqQTDwkWtcdYI2i06Y/nUBEsNEDJKjWdigLvegy8kDuJAS8uRlpkkcQpyEXL0Z/pjDy5HBmMjRCJ2gq+g==}
@@ -1632,6 +1665,9 @@ packages:
     resolution: {integrity: sha512-1POYv7uv2gXoyGFpBCmpDVSNV74IfsWlDW216UPjbWufNf+bSU6GdbDsxdcxtfwb4xlI3yxzOTKClUosxARYrQ==}
     engines: {node: '>=0.10.0'}
 
+  stats.js@0.17.0:
+    resolution: {integrity: sha512-hNKz8phvYLPEcRkeG1rsGmV5ChMjKDAWU7/OJJdDErPBNChQXxCo3WZurGpnWc6gZhAzEPFad1aVgyOANH1sMw==}
+
   strip-json-comments@3.1.1:
     resolution: {integrity: sha512-6fPc+R4ihwqP6N/aIv2f1gMH8lOVtWQHoqC4yK6oSDVVocumAsfCqjkXnqiYMhmMwS/mEHLp7Vehlt3ql6lEig==}
     engines: {node: '>=8'}
@@ -1783,6 +1819,11 @@ packages:
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
     peerDependencies:
       eslint: ^8.57.0 || ^9.0.0
+
+  vue-router@4.6.3:
+    resolution: {integrity: sha512-ARBedLm9YlbvQomnmq91Os7ck6efydTSpRP3nuOKCvgJOHNrhRoJDSKtee8kcL1Vf7nz6U+PMBL+hTvR3bTVQg==}
+    peerDependencies:
+      vue: ^3.5.0
 
   vue-tsc@3.1.5:
     resolution: {integrity: sha512-L/G9IUjOWhBU0yun89rv8fKqmKC+T0HfhrFjlIml71WpfBv9eb4E9Bev8FMbyueBIU9vxQqbd+oOsVcDa5amGw==}
@@ -2306,6 +2347,10 @@ snapshots:
     dependencies:
       '@tiptap/core': 3.11.0(@tiptap/pm@3.11.0)
 
+  '@tiptap/extension-color@3.11.0(@tiptap/extension-text-style@3.11.0(@tiptap/core@3.11.0(@tiptap/pm@3.11.0)))':
+    dependencies:
+      '@tiptap/extension-text-style': 3.11.0(@tiptap/core@3.11.0(@tiptap/pm@3.11.0))
+
   '@tiptap/extension-document@3.11.0(@tiptap/core@3.11.0(@tiptap/pm@3.11.0))':
     dependencies:
       '@tiptap/core': 3.11.0(@tiptap/pm@3.11.0)
@@ -2370,6 +2415,10 @@ snapshots:
       '@tiptap/core': 3.11.0(@tiptap/pm@3.11.0)
 
   '@tiptap/extension-strike@3.11.0(@tiptap/core@3.11.0(@tiptap/pm@3.11.0))':
+    dependencies:
+      '@tiptap/core': 3.11.0(@tiptap/pm@3.11.0)
+
+  '@tiptap/extension-text-style@3.11.0(@tiptap/core@3.11.0(@tiptap/pm@3.11.0))':
     dependencies:
       '@tiptap/core': 3.11.0(@tiptap/pm@3.11.0)
 
@@ -2636,6 +2685,8 @@ snapshots:
     dependencies:
       '@vue/compiler-dom': 3.5.24
       '@vue/shared': 3.5.24
+
+  '@vue/devtools-api@6.6.4': {}
 
   '@vue/devtools-api@7.7.9':
     dependencies:
@@ -3039,6 +3090,8 @@ snapshots:
   has-flag@4.0.0: {}
 
   hookable@5.5.3: {}
+
+  husky@9.1.7: {}
 
   ignore@5.3.2: {}
 
@@ -3457,6 +3510,8 @@ snapshots:
 
   speakingurl@14.0.1: {}
 
+  stats.js@0.17.0: {}
+
   strip-json-comments@3.1.1: {}
 
   superjson@2.2.5:
@@ -3602,6 +3657,11 @@ snapshots:
       semver: 7.7.3
     transitivePeerDependencies:
       - supports-color
+
+  vue-router@4.6.3(vue@3.5.24(typescript@5.9.3)):
+    dependencies:
+      '@vue/devtools-api': 6.6.4
+      vue: 3.5.24(typescript@5.9.3)
 
   vue-tsc@3.1.5(typescript@5.9.3):
     dependencies:

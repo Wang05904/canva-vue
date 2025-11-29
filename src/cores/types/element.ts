@@ -30,10 +30,13 @@ export interface CanvasElement {
 export interface TextElement extends CanvasElement {
   type: 'text'
   content: string
+  htmlContent?: string // 富文本内容
   fontSize: number
   fontFamily: string
   color: string
-  // 其他文本属性
+  fontWeight?: 'normal' | 'bold'
+  fontStyle?: 'normal' | 'italic'
+  textDecoration?: 'none' | 'underline'
 }
 
 // 图形元素类型

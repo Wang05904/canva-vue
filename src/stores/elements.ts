@@ -62,7 +62,8 @@ export const useElementsStore = defineStore('elements', {
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
-      this.elements.push(newElement);
+      // 创建新数组引用，触发 watch
+      this.elements = [...this.elements, newElement];
       this.recordSnapshot()
       this.saveToLocal();
       return id;
@@ -92,7 +93,8 @@ export const useElementsStore = defineStore('elements', {
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
-      this.elements.push(newElement);
+      // 创建新数组引用，触发 watch
+      this.elements = [...this.elements, newElement];
       this.recordSnapshot()
       this.saveToLocal();
       return id;
@@ -107,7 +109,8 @@ export const useElementsStore = defineStore('elements', {
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
-      this.elements.push(newElement);
+      // 创建新数组引用，触发 watch
+      this.elements = [...this.elements, newElement];
       this.recordSnapshot()
       this.saveToLocal();
       return id;
@@ -127,6 +130,26 @@ export const useElementsStore = defineStore('elements', {
       //对象合并Object.assign(目标对象, 源对象)
       Object.assign(element, updates)
       element.updatedAt = Date.now()
+      
+      // 创建新数组引用，触发 watch
+      this.elements = [...this.elements]
+      this.recordSnapshot()
+      this.saveToLocal()
+    },
+
+    /** 更新文本元素 */
+    updateTextElement(
+      elementId: string,
+      updates: Partial<Omit<TextElement, 'id' | 'type' | 'createdAt' | 'updatedAt'>>
+    ): void {
+      const element = this.elements.find(el => el.id === elementId);
+      if (!element || element.type !== 'text') return;
+
+      Object.assign(element, updates)
+      element.updatedAt = Date.now()
+      
+      // 创建新数组引用，触发 watch
+      this.elements = [...this.elements]
       this.recordSnapshot()
       this.saveToLocal()
     },
@@ -137,6 +160,9 @@ export const useElementsStore = defineStore('elements', {
       if (!el) return
       el.x += dx
       el.y += dy
+      
+      // 创建新数组引用，触发 watch
+      this.elements = [...this.elements]
       this.recordSnapshot()
       this.saveToLocal()
     },
@@ -167,6 +193,9 @@ export const useElementsStore = defineStore('elements', {
           el.y += dy
         }
       })
+      
+      // 创建新数组引用，触发 watch
+      this.elements = [...this.elements]
       this.recordSnapshot()
       this.saveToLocal()
     },
@@ -259,6 +288,9 @@ export const useElementsStore = defineStore('elements', {
           element.updatedAt = Date.now()
         }
       })
+      
+      // 创建新数组引用，触发 watch
+      this.elements = [...this.elements]
       this.saveToLocal()
     },
 
