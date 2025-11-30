@@ -132,20 +132,39 @@ const setTool = (tool: ToolType) => {
   canvasStore.setTool(tool)
   console.log('Tool selected:', tool)
 }
+import { useSelectionStore } from '@/stores/selection'
+
+const selectionStore = useSelectionStore()
 
 const onUndo = () => {
-  const snapshot = historyService.undo()
-  if (snapshot) {
-    elementsStore.elements = snapshot
-    elementsStore.saveToLocal()
+  const result = historyService.undo()
+  if (!result) return
+
+  const { changedIds } = result
+
+  // 保存到本地
+  elementsStore.saveToLocal()
+
+  // 自动重新选中被变更的元素
+  selectionStore.clearSelection()
+  if (changedIds?.length) {
+    changedIds.forEach(id => selectionStore.addToSelection(id))
   }
 }
 
 const onRedo = () => {
-  const snapshot = historyService.redo()
-  if (snapshot) {
-    elementsStore.elements = snapshot
-    elementsStore.saveToLocal()
+  const result = historyService.redo()
+  if (!result) return
+
+  const { changedIds } = result
+
+  // 保存到本地
+  elementsStore.saveToLocal()
+
+  // 自动重新选中被变更的元素
+  selectionStore.clearSelection()
+  if (changedIds?.length) {
+    changedIds.forEach(id => selectionStore.addToSelection(id))
   }
 }
 

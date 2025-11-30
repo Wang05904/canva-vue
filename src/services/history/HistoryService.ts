@@ -1,10 +1,6 @@
-/**
- * Service层-历史服务
- * 功能：处理历史记录管理（操作记录、撤销、重做等）
- * 服务对象：为Composables层提供历史操作支持
- */
 import type { AnyElement } from '@/cores/types/element'
 import { useHistoryStore } from '@/stores/history'
+import { useElementsStore } from '@/stores/elements'
 
 /**
  * Service层-历史服务
@@ -12,9 +8,12 @@ import { useHistoryStore } from '@/stores/history'
  * 服务对象：为Composables层提供历史操作支持
  */
 export class HistoryService {
-  // lazy access to the pinia store to avoid calling useHistoryStore() at module load time
   private get store() {
     return useHistoryStore()
+  }
+
+  private get elementsStore() {
+    return useElementsStore()
   }
 
   constructor() {}
@@ -31,46 +30,40 @@ export class HistoryService {
     this.store.endBatch()
   }
 
-  /**
-   * 执行撤销并返回快照（如果有）
-   */
-  undo(): AnyElement[] | null {
-    return this.store.undo()
+  undo() {
+    const result = this.store.undo()
+    if (result && result.snapshot) {
+      // 使用history中的snapshot更新elementsStore的状态
+      this.elementsStore.elements = result.snapshot
+    }
+    return result
   }
 
-  /**
-   * 执行重做并返回快照（如果有）
-   */
-  redo(): AnyElement[] | null {
-    return this.store.redo()
+  redo() {
+    const result = this.store.redo()
+    if (result && result.snapshot) {
+      // 使用history中的snapshot更新elementsStore的状态
+      this.elementsStore.elements = result.snapshot
+    }
+    return result
   }
 
-  getCurrent(): AnyElement[] | null {
+  getCurrent() {
     return this.store.getCurrent()
-  }
-
-  canUndo(): boolean {
-    return this.store.index > 0
-  }
-
-  canRedo(): boolean {
-    return this.store.index < this.store.stack.length - 1
   }
 
   clear() {
     this.store.clear()
   }
 
-  // Expose reactive store properties for consumers
-  get stack(): AnyElement[][] {
-    return this.store.stack
+  canUndo() {
+    return this.store.index > 0
   }
 
-  get index(): number {
-    return this.store.index
+  canRedo() {
+    return this.store.index < this.store.stack.length - 1
   }
 }
 
-// singleton instance
 export const historyService = new HistoryService()
 export default historyService

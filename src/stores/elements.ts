@@ -268,26 +268,6 @@ export const useElementsStore = defineStore('elements', {
       this.recordSnapshot()
       this.saveToLocal()
     },
-
-    /** 撤销 */
-    undo() {
-      const history = useHistoryStore()
-      const snapshot = history.undo()
-      if (snapshot) {
-        this.elements = snapshot
-        this.saveToLocal()
-      }
-    },
-
-    /** 重做 */
-    redo() {
-      const history = useHistoryStore()
-      const snapshot = history.redo()
-      if (snapshot) {
-        this.elements = snapshot
-        this.saveToLocal()
-      }
-    },
     /**
      * 批量更新元素
      * @param ids 要更新的元素ID数组

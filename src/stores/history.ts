@@ -1,94 +1,166 @@
 import { defineStore } from 'pinia'
 import type { AnyElement } from '@/cores/types/element'
 
+export interface HistoryRecord {
+  before: AnyElement[] | null
+  after: AnyElement[] | null
+  changedIds: string[]
+  desc: string
+}
+
 export const useHistoryStore = defineStore('history', {
   state: () => ({
-    stack: [] as AnyElement[][],       // 存储 elements 的快照
-    index: -1,                // 当前指针
-    maxSize: 200,             // 最大历史记录
-    batchDepth: 0,            // 批处理深度（>0 时合并快照）
-    pendingSnapshot: null as AnyElement[] | null, // 批处理中暂存的初始快照
+    stack: [] as HistoryRecord[],
+    index: -1,
+    maxSize: 200,
+    batchDepth: 0,
+    pendingRecord: null as HistoryRecord | null,
   }),
 
   actions: {
-    /** 记录快照 */
+    /** 自动生成 changedIds */
+    getChangedIds(before: AnyElement[] | null, after: AnyElement[] | null): string[] {
+      if (!before && after) return after.map(e => e.id)
+      if (!after && before) return before.map(e => e.id)
+      if (!before || !after) return []
+
+      const beforeMap = new Map(before.map(e => [e.id, e]))
+      const changed: string[] = []
+
+      for (const el of after) {
+        const prev = beforeMap.get(el.id)
+        if (!prev || JSON.stringify(prev) !== JSON.stringify(el)) {
+          changed.push(el.id)
+        }
+      }
+
+      return changed
+    },
+
+    /** 自动获取调用 pushSnapshot 的上级方法名称 */
+    getCallerMethodName(): string {
+      const stack = new Error().stack?.split('\n') || []
+      const line = stack[3] || ''
+      const match = line.match(/at\s+(\w+)/)
+      return match?.[1] || 'unknown'
+    },
+
+    /** 推入历史记录（以 diff 形式） */
     pushSnapshot(snapshot: AnyElement[]) {
-      // 如果处于批处理阶段，持续更新 pendingSnapshot 为最新的快照（最终会在 endBatch 时入栈）
+      const clonedAfter = JSON.parse(JSON.stringify(snapshot))
+      const desc = this.getCallerMethodName()
+
+      let before: AnyElement[] | null = null
+      if (this.index >= 0 && this.stack[this.index]) {
+        // TODO：stack获取为空情况需要解决
+        before = JSON.parse(JSON.stringify(this.stack[this.index].after))
+      }
+
+      const changedIds = this.getChangedIds(before, clonedAfter)
+
+      const record: HistoryRecord = {
+        before,
+        after: clonedAfter,
+        changedIds,
+        desc
+      }
+
+      // 批处理中暂存
       if (this.batchDepth > 0) {
-        this.pendingSnapshot = JSON.parse(JSON.stringify(snapshot))
+        this.pendingRecord = record
         return
       }
 
-      // 若曾经 undo 过，则需要截断未来记录
+      // 截断未来记录
       if (this.index < this.stack.length - 1) {
         this.stack = this.stack.slice(0, this.index + 1)
       }
 
-      // 限制最大长度
+      // 限制最大数
       if (this.stack.length >= this.maxSize) {
         this.stack.shift()
         this.index--
       }
 
-      this.stack.push(JSON.parse(JSON.stringify(snapshot)))
+      this.stack.push(record)
       this.index++
     },
 
-    /** 开始批处理：合并多次变更为一次历史快照 */
     beginBatch() {
-      if (this.batchDepth === 0) {
-        this.pendingSnapshot = null
-      }
+      if (this.batchDepth === 0) this.pendingRecord = null
       this.batchDepth++
     },
 
-    /** 结束批处理并提交合并后的快照（如果有） */
     endBatch() {
       if (this.batchDepth <= 0) return
       this.batchDepth--
-      if (this.batchDepth === 0 && this.pendingSnapshot != null) {
-        // 提交之前保存的初始快照为一个历史记录
-        // 若曾经 undo 过，则需要截断未来记录
+
+      if (this.batchDepth === 0 && this.pendingRecord) {
+        // 截掉未来记录
         if (this.index < this.stack.length - 1) {
           this.stack = this.stack.slice(0, this.index + 1)
         }
 
-        // 限制最大长度
         if (this.stack.length >= this.maxSize) {
           this.stack.shift()
           this.index--
         }
 
-        this.stack.push(JSON.parse(JSON.stringify(this.pendingSnapshot)))
+        this.stack.push(this.pendingRecord)
         this.index++
-        this.pendingSnapshot = null
+        this.pendingRecord = null
       }
     },
 
     /** 撤销 */
-    undo(): AnyElement[] | null {
+    undo() {
+      // 保证 index - 1 不会越界
       if (this.index <= 0) return null
+
+      const record = this.stack[this.index]
+      if (!record) return null  // TS：这里已经保证 record 有类型保护
+
       this.index--
-      return JSON.parse(JSON.stringify(this.stack[this.index]))
+
+      return {
+        snapshot: record.before ? JSON.parse(JSON.stringify(record.before)) : null,
+        changedIds: [...record.changedIds],
+        desc: record.desc
+      }
     },
 
     /** 重做 */
-    redo(): AnyElement[] | null {
+    redo() {
       if (this.index >= this.stack.length - 1) return null
-      this.index++
-      return JSON.parse(JSON.stringify(this.stack[this.index]))
+
+      const nextIndex = this.index + 1
+      const record = this.stack[nextIndex]
+      if (!record) return null
+
+      this.index = nextIndex
+
+      return {
+        snapshot: record.after ? JSON.parse(JSON.stringify(record.after)) : null,
+        changedIds: [...record.changedIds],
+        desc: record.desc
+      }
     },
 
     /** 获取当前快照 */
-    getCurrent(): AnyElement[] | null {
+    getCurrent() {
       if (this.index < 0) return null
-      return JSON.parse(JSON.stringify(this.stack[this.index]))
+
+      const record = this.stack[this.index]
+      if (!record) return null
+
+      return record.after ? JSON.parse(JSON.stringify(record.after)) : null
     },
 
     /** 清除全部记录 */
     clear() {
       this.stack = []
       this.index = -1
+      this.pendingRecord = null
     }
   }
 })

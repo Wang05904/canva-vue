@@ -208,6 +208,16 @@ export function useCanvas() {
       elementsStore.pasteElements(mousePosition.value)
       console.log('粘贴元素到位置:', mousePosition.value)
     }
+    
+    // 处理 Delete/Backspace 删除
+    if (event.key === 'Delete' || event.key === 'Backspace') {
+      event.preventDefault()
+      const selectedIds = selectionStore.selectedIds
+      if (selectedIds.length > 0) {
+        elementsStore.removeElements(selectedIds)
+        console.log('删除选中元素:', selectedIds)
+      }
+    }
   }
 
   onMounted(() => {
