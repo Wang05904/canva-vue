@@ -97,7 +97,7 @@ export class RenderService {
     // 设置容器的缩放
     this.worldContainer.scale.set(viewport.zoom, viewport.zoom)
 
-    // 设置容器的旋转
+    // 设置容器的旋转（暂时没用上）
     this.worldContainer.rotation = viewport.rotation
 
     // 设置容器的位置（将相机位置转换为容器位置）
