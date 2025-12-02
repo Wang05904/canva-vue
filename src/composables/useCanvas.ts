@@ -8,6 +8,7 @@ import { CanvasService } from '@/services/canvas/CanvasService'
 import { useCanvasStore } from '@/stores/canvas'
 import { useElementsStore } from '@/stores/elements'
 import { useSelectionStore } from '@/stores/selection'
+import { CoordinateTransform } from '@/cores/viewport/CoordinateTransform'
 import type { ToolType } from '@/services/canvas/ToolService'
 
 export function useCanvas() {
@@ -215,13 +216,21 @@ export function useCanvas() {
       elementsStore.copySelectedElements()
       console.log('复制选中元素')
     }
-
+    
     // 处理 Ctrl+V 粘贴
     if ((event.ctrlKey || event.metaKey) && event.key === 'v') {
       event.preventDefault()
-      // 传递鼠标位置给粘贴方法
-      elementsStore.pasteElements(mousePosition.value)
-      console.log('粘贴元素到位置:', mousePosition.value)
+      // 将屏幕坐标转换为世界坐标
+      const worldPosition = CoordinateTransform.screenToWorld(
+        mousePosition.value.x,
+        mousePosition.value.y,
+        canvasStore.viewport,
+        canvasStore.width || 800,
+        canvasStore.height || 600
+      )
+      // 传递世界坐标给粘贴方法
+      elementsStore.pasteElements(worldPosition)
+      console.log('粘贴元素到位置:', worldPosition)
     }
 
     // 处理 Delete/Backspace 删除
