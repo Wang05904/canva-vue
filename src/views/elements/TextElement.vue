@@ -19,11 +19,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, inject } from 'vue'
 import type { TextElement } from '@/cores/types/element'
 import { useElementsStore } from '@/stores/elements'
 import { useSelectionStore } from '@/stores/selection'
 import { useDragState } from '@/composables/useDragState'
+import type { CanvasService } from '@/services/canvas/CanvasService'
 
 const props = defineProps<{
   element: TextElement
@@ -35,6 +36,7 @@ const emit = defineEmits<{
 
 const elementsStore = useElementsStore()
 const selectionStore = useSelectionStore()
+const canvasService = inject<CanvasService>('canvasService')
 const { startDrag, updateDragOffset, endDrag, getDragState } = useDragState()
 
 const isDragging = ref(false)
@@ -96,11 +98,22 @@ const handleMouseDown = (e: MouseEvent) => {
 
 // 鼠标移动 - 使用 RAF 节流 + 直接操作 DOM
 const handleMouseMove = (e: MouseEvent) => {
-  const dx = e.clientX - dragStartPos.value.x
-  const dy = e.clientY - dragStartPos.value.y
+  // 获取屏幕空间的偏移量
+  const screenDx = e.clientX - dragStartPos.value.x
+  const screenDy = e.clientY - dragStartPos.value.y
+  
+  // 转换为世界坐标偏移（考虑缩放）
+  let dx = screenDx
+  let dy = screenDy
+  
+  if (canvasService) {
+    const viewport = canvasService.getViewportService().getViewport()
+    dx = screenDx / viewport.zoom
+    dy = screenDy / viewport.zoom
+  }
   
   // 移动超过 3px 才认为是拖拽
-  if (!isDragging.value && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+  if (!isDragging.value && (Math.abs(screenDx) > 3 || Math.abs(screenDy) > 3)) {
     isDragging.value = true
     hasMoved.value = true
     if (elementRef.value) {
@@ -143,8 +156,19 @@ const handleMouseUp = (e: MouseEvent) => {
   }
   
   if (hasMoved.value) {
-    const dx = e.clientX - dragStartPos.value.x
-    const dy = e.clientY - dragStartPos.value.y
+    // 获取屏幕空间的偏移量
+    const screenDx = e.clientX - dragStartPos.value.x
+    const screenDy = e.clientY - dragStartPos.value.y
+    
+    // 转换为世界坐标偏移（考虑缩放）
+    let dx = screenDx
+    let dy = screenDy
+    
+    if (canvasService) {
+      const viewport = canvasService.getViewportService().getViewport()
+      dx = screenDx / viewport.zoom
+      dy = screenDy / viewport.zoom
+    }
     
     // 只在拖拽结束时更新 store
     elementsStore.updateTextElement(props.element.id, {

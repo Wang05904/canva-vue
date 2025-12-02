@@ -98,13 +98,24 @@ export function useElementDrag(elementId: string) {
   }
 
   /**
-   * 鼠标移动 - 拖拽中（使用 RAF 节流 + 直接 DOM 操作）
+   * 鼠标移动 - 单选元素拖拽（使用 RAF 节流 + 直接 DOM 操作）
    */
   const handleMouseMove = (e: MouseEvent) => {
     if (!isDragging.value) return
 
-    const dx = e.clientX - dragStartPos.value.x
-    const dy = e.clientY - dragStartPos.value.y
+    // 获取屏幕空间的偏移量
+    const screenDx = e.clientX - dragStartPos.value.x
+    const screenDy = e.clientY - dragStartPos.value.y
+
+    // 转换为世界坐标偏移（考虑缩放）
+    let dx = screenDx
+    let dy = screenDy
+
+    if (canvasService) {
+      const viewport = canvasService.getViewportService().getViewport()
+      dx = screenDx / viewport.zoom
+      dy = screenDy / viewport.zoom
+    }
 
     totalOffset.value = { x: dx, y: dy }
 
