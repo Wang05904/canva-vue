@@ -176,14 +176,7 @@
         @click="toggleSnap"
         :title="isSnapEnabled ? '关闭对齐吸附' : '开启对齐吸附'"
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <!-- 磁铁图标 -->
-          <path d="M4 13v6a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-6"></path>
-          <path d="M14 13v6a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-6"></path>
-          <path d="M4 5v4a8 8 0 0 0 16 0V5"></path>
-          <line x1="4" y1="5" x2="10" y2="5"></line>
-          <line x1="14" y1="5" x2="20" y2="5"></line>
-        </svg>
+        <svg t="1764687993974" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1618" width="32" height="32"><path d="M537.6512 1024h-51.2v-307.2h-179.2V307.2h409.6v409.6h-179.2v307.2z m-168.96-368.64h286.72V368.64h-286.72z m655.36-117.76h-307.2v-51.2h307.2v51.2z m-716.8 0h-307.2v-51.2h307.2v51.2z m230.4-230.4h-51.2V0h51.2v307.2z" p-id="1619"></path></svg>
       </button>
     </div>
 
