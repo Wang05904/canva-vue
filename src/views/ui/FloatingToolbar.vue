@@ -1,4 +1,5 @@
 <template>
+  <!-- 单个形状元素样式编辑工具栏 -->
   <div
     v-if="selectedElement && selectedElement.type === 'shape' && !selectionStore.isMultiSelect && (currentTool === 'select') && !isDragging"
     class="floating-toolbar"
@@ -94,6 +95,33 @@
       </div>
     </template>
   </div>
+
+  <!-- 多选/组合操作浮动工具栏 -->
+  <div
+    v-else-if="(selectionStore.isMultiSelect || isGroupSelected) && currentTool === 'select' && !isDragging"
+    class="floating-toolbar"
+    :style="toolbarStyle"
+    @mousedown.stop
+  >
+    <!-- 分组/解组按钮 -->
+    <button
+      v-if="selectionStore.isMultiSelect"
+      class="tool-btn group-btn"
+      title="组合所选元素"
+      @click="handleGroup"
+    >
+      组合
+    </button>
+
+    <button
+      v-else-if="isGroupSelected"
+      class="tool-btn group-btn"
+      title="解散组合"
+      @click="handleUngroup"
+    >
+      解组
+    </button>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -104,12 +132,15 @@ import { useDragState } from '@/composables/useDragState'
 import { computed, inject, onMounted, onUnmounted, ref } from 'vue'
 import { CoordinateTransform } from '@/cores/viewport/CoordinateTransform'
 import type { CanvasService } from '@/services/canvas/CanvasService'
+import { GroupService } from '@/services'
+import { Message } from '@arco-design/web-vue'
 
 const selectionStore = useSelectionStore()
 const elementsStore = useElementsStore()
 const canvasStore = useCanvasStore()
 const { getDragState } = useDragState()
 const canvasService = inject<CanvasService>('canvasService')
+const groupService = new GroupService()
 
 // 监听拖拽状态
 const isDragging = computed(() => {
@@ -158,6 +189,12 @@ const selectedElement = computed(() => {
   return elementsStore.getElementById(selectionStore.firstSelectedId)
 })
 
+// 是否选中的是组合元素
+const isGroupSelected = computed(() => {
+  const el = selectedElement.value
+  return !!el && el.type === 'group'
+})
+
 // 当前工具
 const currentTool = computed(() => canvasStore.currentTool)
 
@@ -169,7 +206,7 @@ const toolbarStyle = computed(() => {
   const viewport = canvasStore.viewport
   const canvasWidth = canvasStore.width
   const canvasHeight = canvasStore.height
-  
+
   // 将元素的世界坐标转换为屏幕坐标
   const topLeft = CoordinateTransform.worldToScreen(
     element.x,
@@ -178,7 +215,7 @@ const toolbarStyle = computed(() => {
     canvasWidth,
     canvasHeight
   )
-  
+
   const bottomRight = CoordinateTransform.worldToScreen(
     element.x + element.width,
     element.y + element.height,
@@ -186,10 +223,10 @@ const toolbarStyle = computed(() => {
     canvasWidth,
     canvasHeight
   )
-  
+
   const screenWidth = bottomRight.x - topLeft.x
   const screenCenterX = topLeft.x + screenWidth / 2
-  
+
   const toolbarHeight = 44
   const padding = 12
 
@@ -199,6 +236,34 @@ const toolbarStyle = computed(() => {
     transform: 'translateX(-50%)'
   }
 })
+
+// 创建组合
+const handleGroup = () => {
+  if (!selectionStore.isMultiSelect) return
+  const ids = selectionStore.selectedIds
+
+  // 禁止组合元素与其他元素再次组合
+  const hasGroup = ids.some(id => {
+    const el = elementsStore.getElementById(id)
+    return el?.type === 'group'
+  })
+
+  if (hasGroup) {
+    Message.warning({
+      content: '组合元素不能再次与其他元素组合',
+      duration: 2000
+    })
+    return
+  }
+
+  groupService.createGroup(ids)
+}
+
+// 解组
+const handleUngroup = () => {
+  if (!isGroupSelected.value || !selectedElement.value) return
+  groupService.ungroup(selectedElement.value.id)
+}
 
 // 切换填充色选择器
 const toggleFillPicker = () => {
@@ -235,26 +300,26 @@ const updateFill = (color: string) => {
 const updateFillCustom = (event: Event) => {
   const target = event.target as HTMLInputElement
   const color = target.value
-  
+
   if (!selectedElement.value || selectedElement.value.type !== 'shape') return
-  
+
   // 取消之前的 RAF
   if (fillColorRafId !== null) {
     cancelAnimationFrame(fillColorRafId)
   }
-  
+
   // 使用 RAF 确保流畅更新
   fillColorRafId = requestAnimationFrame(() => {
     if (!selectedElement.value || selectedElement.value.type !== 'shape') return
-    
+
     const elementId = selectedElement.value.id
-    
+
     // 1. 立即更新 store 中的元素数据（不触发保存）
     const element = elementsStore.getElementById(elementId)
     if (element && element.type === 'shape') {
       element.fillColor = color
     }
-    
+
     // 2. 直接更新 PIXI 渲染（跳过脏检查）
     if (canvasService) {
       canvasService.updateGraphicStyle(elementId, {
@@ -262,10 +327,10 @@ const updateFillCustom = (event: Event) => {
         fillColor: color
       })
     }
-    
+
     // 3. 延迟保存到 localStorage
     debouncedSave()
-    
+
     fillColorRafId = null
   })
 }
@@ -294,26 +359,26 @@ const updateBorderColor = (color: string) => {
 const updateBorderColorCustom = (event: Event) => {
   const target = event.target as HTMLInputElement
   const color = target.value
-  
+
   if (!selectedElement.value || selectedElement.value.type !== 'shape') return
-  
+
   // 取消之前的 RAF
   if (borderColorRafId !== null) {
     cancelAnimationFrame(borderColorRafId)
   }
-  
+
   // 使用 RAF 确保流畅更新
   borderColorRafId = requestAnimationFrame(() => {
     if (!selectedElement.value || selectedElement.value.type !== 'shape') return
-    
+
     const elementId = selectedElement.value.id
-    
+
     // 1. 立即更新 store 中的元素数据（不触发保存）
     const element = elementsStore.getElementById(elementId)
     if (element && element.type === 'shape') {
       element.strokeColor = color
     }
-    
+
     // 2. 直接更新 PIXI 渲染（跳过脏检查）
     if (canvasService) {
       canvasService.updateGraphicStyle(elementId, {
@@ -321,10 +386,10 @@ const updateBorderColorCustom = (event: Event) => {
         strokeColor: color
       })
     }
-    
+
     // 3. 延迟保存到 localStorage
     debouncedSave()
-    
+
     borderColorRafId = null
   })
 }
@@ -345,7 +410,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
-  
+
   // 清理待处理的 RAF
   if (fillColorRafId !== null) {
     cancelAnimationFrame(fillColorRafId)
@@ -353,7 +418,7 @@ onUnmounted(() => {
   if (borderColorRafId !== null) {
     cancelAnimationFrame(borderColorRafId)
   }
-  
+
   // 清理延迟保存定时器
   if (saveTimeoutId !== null) {
     clearTimeout(saveTimeoutId)
@@ -375,6 +440,21 @@ onUnmounted(() => {
   pointer-events: auto;
   user-select: none;
   transition: top 0.1s ease, left 0.1s ease;
+}
+
+.group-btn {
+  padding: 0 12px;
+  font-size: 13px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #333;
+  white-space: nowrap;
+}
+
+.group-btn:hover {
+  background-color: rgba(0, 0, 0, 0.06);
 }
 
 .tool-btn {

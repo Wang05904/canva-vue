@@ -84,9 +84,21 @@ const cachedBoundingBox = ref<{ x: number; y: number; width: number; height: num
 const calculateBoundingBox = () => {
   if (selectedIds.value.length === 0) return null
 
-  const selectedElements = selectedIds.value
-    .map(id => elementsStore.getElementById(id))
-    .filter(el => el != null)
+  // 展开组合元素：使用其子元素参与边界框计算
+  const selectedElements = selectedIds.value.flatMap(id => {
+    const el = elementsStore.getElementById(id)
+    if (!el) return []
+
+    if (el.type === 'group' && 'children' in el && Array.isArray(el.children)) {
+      const children = el.children
+        .map(childId => elementsStore.getElementById(childId))
+        .filter(child => child != null)
+      // 如果组合没有有效子元素，退回到组合自身
+      return children.length > 0 ? children : [el]
+    }
+
+    return [el]
+  })
 
   if (selectedElements.length === 0) return null
 
@@ -316,7 +328,18 @@ const stopDrag = () => {
 
   // 应用最终偏移到 Store
   if ((Math.abs(totalOffset.value.x) > 1 || Math.abs(totalOffset.value.y) > 1) && selectedIds.value.length > 0) {
-    elementsStore.moveElements(selectedIds.value, totalOffset.value.x, totalOffset.value.y)
+    // 如果选中的是组合元素，需要同时移动组合及其子元素
+    const idsToMove = new Set<string>()
+    selectedIds.value.forEach(id => {
+      const el = elementsStore.getElementById(id)
+      if (!el) return
+      idsToMove.add(id)
+      if (el.type === 'group' && 'children' in el && Array.isArray(el.children)) {
+        el.children.forEach(childId => idsToMove.add(childId))
+      }
+    })
+
+    elementsStore.moveElements(Array.from(idsToMove), totalOffset.value.x, totalOffset.value.y)
     elementsStore.saveToLocal()
 
     // Reset DOM image transforms after store update
@@ -520,26 +543,68 @@ const stopResize = () => {
   if (Math.abs(scaleX - 1) > 0.01 || Math.abs(scaleY - 1) > 0.01) {
     const centerX = cachedBoundingBox.value.x + cachedBoundingBox.value.width / 2
     const centerY = cachedBoundingBox.value.y + cachedBoundingBox.value.height / 2
+
+    // 展开组合：被选中的 group 以及其 children 一起参与缩放
+    const targetIds = new Set<string>()
+    selectedIds.value.forEach(id => {
+      const el = elementsStore.getElementById(id)
+      if (!el) return
+      targetIds.add(id)
+      if (el.type === 'group' && 'children' in el && Array.isArray(el.children)) {
+        el.children.forEach(childId => targetIds.add(childId))
+      }
+    })
+
+    const allTargetIds = Array.from(targetIds)
     
-    elementsStore.updateElements(selectedIds.value, (el) => {
-      let x, y
-      if (selectedIds.value.length > 1) {
-        // Multi-element: scale from center
+    elementsStore.updateElements(allTargetIds, (el) => {
+      const isMulti = allTargetIds.length > 1
+      const isCircle = el.type === 'shape' && 'shapeType' in el && el.shapeType === 'circle'
+
+      let x = el.x
+      let y = el.y
+      let newWidth = el.width * scaleX
+      let newHeight = el.height * scaleY
+
+      if (isMulti) {
+        // 多元素统一绕中心缩放（包括组合自身和其子元素）
         const relX = el.x + el.width / 2 - centerX
         const relY = el.y + el.height / 2 - centerY
-        x = centerX + relX * scaleX - el.width * scaleX / 2
-        y = centerY + relY * scaleY - el.height * scaleY / 2
+
+        if (isCircle) {
+          // 圆形：使用统一缩放比例，保持宽高一致
+          const uniformScale = Math.max(scaleX, scaleY)
+          const newSize = el.width * uniformScale
+          const newCenterX = centerX + relX * uniformScale
+          const newCenterY = centerY + relY * uniformScale
+
+          x = newCenterX - newSize / 2
+          y = newCenterY - newSize / 2
+          newWidth = newSize
+          newHeight = newSize
+        } else {
+          x = centerX + relX * scaleX - (el.width * scaleX) / 2
+          y = centerY + relY * scaleY - (el.height * scaleY) / 2
+        }
       } else {
-        // Single element: scale from corner
-        x = el.x
-        y = el.y
+        // 单元素缩放（保留原逻辑）
         if (resizeHandle.value.includes('l')) x += el.width * (1 - scaleX)
         if (resizeHandle.value.includes('t')) y += el.height * (1 - scaleY)
+
+        if (isCircle) {
+          // 单个圆形缩放时，同样保持宽高一致
+          const uniformScale = Math.max(scaleX, scaleY)
+          const newSize = el.width * uniformScale
+          // 以当前左上角为基准，不改变锚点
+          newWidth = newSize
+          newHeight = newSize
+        }
       }
+
       el.x = x
       el.y = y
-      el.width = el.width * scaleX
-      el.height = el.height * scaleY
+      el.width = newWidth
+      el.height = newHeight
     })
     elementsStore.saveToLocal()
     cachedBoundingBox.value = calculateBoundingBox()

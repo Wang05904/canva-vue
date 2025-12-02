@@ -35,6 +35,11 @@ export interface EventHandlers {
   getCurrentTool?: () => string
   getSelectedIds?: () => string[]
   getAllElements?: () => AnyElement[]
+  /**
+   * 将实际点击到的元素ID映射为「逻辑交互ID」
+   * 例如：如果点击的是组合内子元素，返回其父组合ID
+   */
+  resolveInteractiveElementId?: (elementId: string) => string
 }
 
 export class EventService {
@@ -125,7 +130,12 @@ export class EventService {
 
     // 现在通过 event.target 获取实际点击的对象
     const target = event.target as Graphics
-    const elementId = this.getElementIdByGraphic?.(target)
+    const rawElementId = this.getElementIdByGraphic?.(target)
+
+    // 将实际点击到的元素ID映射为逻辑交互ID（例如：子元素 -> 组合）
+    const elementId = rawElementId
+      ? (this.handlers.resolveInteractiveElementId?.(rawElementId) ?? rawElementId)
+      : undefined
 
     // 转换屏幕坐标为世界坐标
     const worldPos = this.screenToWorld(event.global.x, event.global.y)

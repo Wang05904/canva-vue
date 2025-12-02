@@ -83,6 +83,14 @@ const containerStyle = computed(() => {
 // 鼠标按下
 const handleMouseDown = (e: MouseEvent) => {
   elementRef.value = e.currentTarget as HTMLElement
+
+  const el = elementsStore.getElementById(props.element.id)
+  // 如果是组合内子元素，点击时选中其父组合，并禁止单独拖拽
+  if (el && el.parentGroup) {
+    selectionStore.selectElement(el.parentGroup)
+    return
+  }
+
   selectionStore.selectElement(props.element.id)
   
   isDragging.value = false

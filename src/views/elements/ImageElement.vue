@@ -2,7 +2,7 @@
   <div
     class="image-element"
     :style="containerStyle"
-    @mousedown="handleMouseDown"
+    @mousedown="onMouseDown"
   >
     <img
       :src="element.src"
@@ -17,6 +17,8 @@ import { computed } from 'vue'
 import type { ImageElement } from '@/cores/types/element'
 import { useElementDrag } from '@/composables/useElementDrag'
 import { useDragState } from '@/composables/useDragState'
+import { useElementsStore } from '@/stores/elements'
+import { useSelectionStore } from '@/stores/selection'
 
 const props = defineProps<{
   element: ImageElement
@@ -25,6 +27,21 @@ const props = defineProps<{
 // 使用拖拽 composable
 const { handleMouseDown, isDragging } = useElementDrag(props.element.id)
 const { getDragState } = useDragState()
+const elementsStore = useElementsStore()
+const selectionStore = useSelectionStore()
+
+// 包装一层，避免组合内子元素被直接拖拽 / 选中
+const onMouseDown = (e: MouseEvent) => {
+  const el = elementsStore.getElementById(props.element.id)
+  if (el && el.parentGroup) {
+    // 点击组合内图片时，选中其父组合，而不是图片本身
+    e.stopPropagation()
+    e.preventDefault()
+    selectionStore.selectElement(el.parentGroup)
+    return
+  }
+  handleMouseDown(e)
+}
 
 // 容器样式 - 使用 transform3d 启用 GPU 加速
 const containerStyle = computed(() => {

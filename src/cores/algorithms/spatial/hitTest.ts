@@ -26,7 +26,7 @@ export function hitTest(x: number, y: number): AnyElement | null {
   const point: Point = { x, y }
   // 1. 获取所有顶层元素（parentGroup为null）并按z-index从高到低排序
   const topLevelElements = globalElements
-    .filter(element => element.parentGroup === null && element.visible)
+    .filter(element => (element.parentGroup === undefined || element.parentGroup === null) && element.visible)
     .sort((a, b) => b.zIndex - a.zIndex)
 
   // 2. 从最高层开始检测

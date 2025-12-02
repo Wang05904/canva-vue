@@ -229,22 +229,39 @@ export const useElementsStore = defineStore('elements', {
      * @returns 元素ID列表
      */
     getElementsInBox(boxX: number, boxY: number, boxWidth: number, boxHeight: number): string[] {
-      return this.elements
-        .filter(el => {
-          // 检查元素是否与框选区域相交
-          const elRight = el.x + el.width
-          const elBottom = el.y + el.height
-          const boxRight = boxX + boxWidth
-          const boxBottom = boxY + boxHeight
+      const boxRight = boxX + boxWidth
+      const boxBottom = boxY + boxHeight
 
-          return !(
-            el.x > boxRight ||
-            elRight < boxX ||
-            el.y > boxBottom ||
-            elBottom < boxY
-          )
-        })
-        .map(el => el.id)
+      const singleIds: string[] = []
+      const groupIds: string[] = []
+
+      this.elements.forEach(el => {
+        // 已经属于某个组合的子元素不参与框选（只能通过组合整体被选中）
+        if (el.parentGroup !== undefined && el.parentGroup !== null) {
+          return
+        }
+
+        const elRight = el.x + el.width
+        const elBottom = el.y + el.height
+
+        const intersect = !(
+          el.x > boxRight ||
+          elRight < boxX ||
+          el.y > boxBottom ||
+          elBottom < boxY
+        )
+
+        if (!intersect) return
+
+        if (el.type === 'group') {
+          groupIds.push(el.id)
+        } else {
+          singleIds.push(el.id)
+        }
+      })
+
+      // 返回顺序无所谓，但避免重复
+      return [...singleIds, ...groupIds]
     },
 
     /** 删除元素 */
