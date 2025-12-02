@@ -44,6 +44,14 @@ export class RenderService {
 
     container.appendChild(this.app.canvas)
 
+    // 设置 canvas 的 z-index，让 DOM 元素能在上层
+    const canvas = this.app.canvas as HTMLCanvasElement
+    canvas.style.position = 'absolute'
+    canvas.style.top = '0'
+    canvas.style.left = '0'
+    canvas.style.zIndex = '1'
+    canvas.style.pointerEvents = 'auto'
+
     // 启用stage交互
     this.app.stage.eventMode = 'static'
     this.app.stage.hitArea = this.app.screen

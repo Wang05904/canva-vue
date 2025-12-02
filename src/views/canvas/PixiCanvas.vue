@@ -10,15 +10,7 @@ View层 - 画布容器组件
     <selection-overlay />
     <mini-map />
     
-    <!-- 文本编辑器 -->
-    <text-editor 
-      ref="textEditorRef"
-      v-if="editingTextId"
-      :element-id="editingTextId" 
-      @close="editingTextId = null"
-    />
-    
-    <!-- 文本编辑工具栏 -->
+    <!-- 文本编辑工具栏 - 使用屏幕坐标，所以放在外面 -->
     <text-editor-toolbar
       v-if="editingTextElement && textEditor && isTextEditing"
       :editor="textEditor"
@@ -32,20 +24,33 @@ View层 - 画布容器组件
       <!-- 背景网格 -->
       <grid-background />
       
-      <!-- 渲染图片元素 -->
-      <image-element
-        v-for="imageEl in imageElements"
-        :key="imageEl.id"
-        :element="imageEl"
-      />
+      <!-- 世界容器 - 跟随画布变换 -->
+      <div class="world-container" :style="worldContainerStyle">
+        <!-- 渲染图片元素 -->
+        <image-element
+          v-for="imageEl in imageElements"
+          :key="imageEl.id"
+          :element="imageEl"
+        />
+      </div>
       
-      <!-- 渲染文本元素 -->
-      <text-element
-        v-for="textEl in textElements"
-        :key="textEl.id"
-        :element="textEl"
-        @dblclick="handleTextDoubleClick"
-      />
+      <!-- 文本元素独立容器 - 移到外面确保能接收事件 -->
+      <div class="text-container" :style="worldContainerStyle">
+        <text-element
+          v-for="textEl in textElements"
+          :key="textEl.id"
+          :element="textEl"
+          @dblclick="handleTextDoubleClick"
+        />
+        
+        <!-- 文本编辑器 - 使用世界坐标，放在 text-container 内跟随变换 -->
+        <text-editor 
+          ref="textEditorRef"
+          v-if="editingTextId"
+          :element-id="editingTextId" 
+          @close="editingTextId = null"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -53,6 +58,7 @@ View层 - 画布容器组件
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, provide, computed } from 'vue'
 import Stats from 'stats.js'
+import { storeToRefs } from 'pinia'
 import TopToolbar from '../../views/ui/TopToolbar.vue'
 import FloatingToolbar from '../../views/ui/FloatingToolbar.vue'
 import ImageToolbar from '../../views/ui/toolbar/ImageToolbar.vue'
@@ -65,10 +71,13 @@ import TextEditor from '../../views/overlays/TextEditor.vue'
 import TextEditorToolbar from '../../views/ui/TextEditorToolbar.vue'
 import { useCanvas } from '@/composables/useCanvas'
 import { useElementsStore } from '@/stores/elements'
+import { useCanvasStore } from '@/stores/canvas'
 import type { ImageElement as ImageElementType, TextElement as TextElementType } from '@/cores/types/element'
 
 const { container, canvasService } = useCanvas()
 const elementsStore = useElementsStore()
+const canvasStore = useCanvasStore()
+const { viewport } = storeToRefs(canvasStore)
 
 // 提供 canvasService 给子组件使用
 provide('canvasService', canvasService)
@@ -97,16 +106,37 @@ const isTextEditing = computed(() => {
 })
 
 // 获取所有图片元素
-const imageElements = computed(() => 
-  elementsStore.elements.filter(el => el.type === 'image') as ImageElementType[]
-)
+const imageElements = computed(() => {
+  return elementsStore.elements.filter(el => el.type === 'image') as ImageElementType[]
+})
 
 // 获取所有文本元素（编辑中的文本元素不显示）
-const textElements = computed(() => 
-  elementsStore.elements.filter(el => 
+const textElements = computed(() => {
+  return elementsStore.elements.filter(el => 
     el.type === 'text' && el.id !== editingTextId.value
   ) as TextElementType[]
-)
+})
+
+// 世界容器样式 - 跟随画布变换（与 PIXI worldContainer 保持一致）
+const worldContainerStyle = computed(() => {
+  const v = viewport.value
+  const canvasWidth = window.innerWidth
+  const canvasHeight = window.innerHeight
+  
+  // 与 RenderService.updateViewportTransform 保持一致的变换逻辑
+  const translateX = canvasWidth / 2 - v.x * v.zoom
+  const translateY = canvasHeight / 2 - v.y * v.zoom
+  
+  return {
+    position: 'absolute' as const,
+    left: '0',
+    top: '0',
+    width: '100%',
+    height: '100%',
+    transformOrigin: '0 0',
+    transform: `translate(${translateX}px, ${translateY}px) scale(${v.zoom}) rotate(${v.rotation}rad)`
+  }
+})
 
 // 处理文本双击
 const handleTextDoubleClick = (elementId: string) => {
@@ -157,5 +187,33 @@ onUnmounted(() => {
   height: 100%;
   background-color: #f5f5f5;
   overflow: hidden;
+}
+
+.world-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.world-container > * {
+  pointer-events: auto;
+}
+
+.text-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 100; /* 比 world-container 更高 */
+  pointer-events: none; /* 容器不接收事件 */
+}
+
+.text-container > * {
+  pointer-events: auto; /* 文本元素接收事件 */
 }
 </style>

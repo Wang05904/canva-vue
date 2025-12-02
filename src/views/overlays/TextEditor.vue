@@ -45,7 +45,7 @@ const element = computed(() => {
   return el?.type === 'text' ? (el as TextElement) : null
 })
 
-// 编辑器样式
+// 编辑器样式 - 使用世界坐标，会被 text-container 的变换影响
 const editorStyle = computed(() => {
   if (!element.value) return {}
   
@@ -53,12 +53,13 @@ const editorStyle = computed(() => {
     position: 'absolute' as const,
     left: `${element.value.x}px`,
     top: `${element.value.y}px`,
-    minWidth: `${element.value.width}px`, // 使用 minWidth 允许扩展
-    maxWidth: '400px', // 最大宽度限制
+    minWidth: `${element.value.width}px`,
+    maxWidth: '400px',
     minHeight: `${element.value.height}px`,
     height: 'auto',
     transform: `rotate(${element.value.rotation || 0}deg)`,
-    zIndex: 1000
+    transformOrigin: 'top left',
+    zIndex: 10000 // 确保在文本元素上面
   }
 })
 

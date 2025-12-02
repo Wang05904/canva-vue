@@ -66,7 +66,11 @@ export function useCanvas() {
       },
       // 工具创建事件 - 使用绘图工具点击画布创建元素
       onToolCreate: (x: number, y: number, tool: string) => {
-        createElement(x, y, tool as ToolType)
+        return createElement(x, y, tool as ToolType)
+      },
+      // 文本编辑事件
+      onTextEdit: (elementId: string) => {
+        console.log('触发文本编辑:', elementId)
       },
       // 获取当前工具
       getCurrentTool: () => canvasStore.currentTool,
@@ -81,8 +85,10 @@ export function useCanvas() {
     if (app) {
       canvasStore.width = app.screen.width
       canvasStore.height = app.screen.height
-      console.log('画布尺寸:', app.screen.width, 'x', app.screen.height)
     }
+
+    // 应用初始视口变换
+    canvasService.getRenderService().updateViewportTransform()
 
     // 首次渲染元素
     canvasService.renderElements(elementsStore.elements)
@@ -162,12 +168,13 @@ export function useCanvas() {
       console.log('创建三角形元素:', id)
       canvasStore.setTool('select')
     } else if (currentTool === 'text') {
-      // 创建文本元素
+      // 创建文本元素 - 使用 calculateCreatePosition 居中
+      const pos = canvasService.calculateCreatePosition(mouseX, mouseY, 'text')
       const id = elementsStore.addText({
-        x: mouseX,
-        y: mouseY,
-        width: 150, // 最小宽度，与 TextEditor 的 minWidth 一致
-        height: 50, // 最小高度，与 TextEditor 的 minHeight 一致
+        x: pos.x,
+        y: pos.y,
+        width: pos.width,
+        height: pos.height,
         content: '双击编辑文本',
         fontSize: 16,
         fontFamily: 'Arial',

@@ -31,7 +31,7 @@ export class ViewportService {
     // 默认配置
     this.config = {
       minZoom: 0.1,
-      maxZoom: 5,
+      maxZoom: 4,
       defaultZoom: 1,
       zoomStep: 0.1,
       enableBounds: false,

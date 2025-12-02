@@ -50,12 +50,12 @@ const containerStyle = computed(() => ({
   left: '0',
   top: '0',
   width: `${props.element.width}px`,
-  height: `${props.element.height}px`, // 使用固定高度而非 minHeight
+  height: `${props.element.height}px`,
   transform: `translate3d(${props.element.x}px, ${props.element.y}px, 0) rotate(${props.element.rotation || 0}deg)`,
   opacity: props.element.opacity,
   visibility: (props.element.visible ? 'visible' : 'hidden') as 'visible' | 'hidden',
-  pointerEvents: (props.element.locked ? 'none' : 'auto') as 'none' | 'auto',
-  zIndex: 1000 + props.element.zIndex,
+  pointerEvents: 'auto' as const,
+  zIndex: 9999, // 固定高 z-index 确保在所有层之上，能接收事件
   fontSize: `${props.element.fontSize}px`,
   color: props.element.color,
   fontFamily: props.element.fontFamily,
@@ -154,7 +154,6 @@ const handleMouseUp = (e: MouseEvent) => {
 
 // 双击进入编辑模式
 const handleDoubleClick = () => {
-  if (hasMoved.value) return
   emit('dblclick', props.element.id)
 }
 </script>
@@ -177,7 +176,7 @@ const handleDoubleClick = () => {
   white-space: pre-wrap; /* 保持所有空格和换行 */
   word-wrap: break-word;
   overflow-wrap: break-word;
-  overflow: hidden; /* 防止内容溢出 */
+  overflow: visible; /* 允许内容溢出，避免文本被裁剪 */
   line-height: 1.5;
   user-select: none;
 }

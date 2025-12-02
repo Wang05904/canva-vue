@@ -159,7 +159,19 @@ const selectedImage = computed(() => {
   return null
 })
 
-// 计算工具栏位置（显示在元素上方）
+// 世界坐标转屏幕坐标
+const worldToScreen = (worldX: number, worldY: number) => {
+  const viewport = canvasStore.viewport
+  const canvasWidth = canvasStore.width
+  const canvasHeight = canvasStore.height
+  
+  const screenX = canvasWidth / 2 + (worldX - viewport.x) * viewport.zoom
+  const screenY = canvasHeight / 2 + (worldY - viewport.y) * viewport.zoom
+  
+  return { x: screenX, y: screenY }
+}
+
+// 计算工具栏位置（显示在元素上方，使用屏幕坐标）
 const toolbarStyle = computed(() => {
   if (!selectedImage.value) return {}
 
@@ -167,12 +179,19 @@ const toolbarStyle = computed(() => {
   const toolbarHeight = 80 // 工具栏高度
   const padding = 12
 
+  // 转换为屏幕坐标
+  const topLeft = worldToScreen(element.x, element.y)
+  const topRight = worldToScreen(element.x + element.width, element.y)
+  
+  // 工具栏居中显示在元素上方
+  const centerX = (topLeft.x + topRight.x) / 2
+
   return {
-    position: 'absolute' as const,
-    left: `${element.x + element.width / 2}px`,
-    top: `${element.y - toolbarHeight - padding}px`,
+    position: 'fixed' as const,
+    left: `${centerX}px`,
+    top: `${topLeft.y - toolbarHeight - padding}px`,
     transform: 'translateX(-50%)',
-    zIndex: 1000
+    zIndex: 10000
   }
 })
 

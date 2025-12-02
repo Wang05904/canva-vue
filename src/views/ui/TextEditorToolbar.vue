@@ -122,6 +122,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useCanvasStore } from '@/stores/canvas'
 
 const props = defineProps<{
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -132,19 +133,36 @@ const props = defineProps<{
   elementWidth: number
 }>()
 
+const canvasStore = useCanvasStore()
+
 // 预设颜色
 const colors = ['#000000', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899']
+
+// 将世界坐标转换为屏幕坐标
+const worldToScreen = (worldX: number, worldY: number) => {
+  const viewport = canvasStore.viewport
+  const canvasWidth = window.innerWidth
+  const canvasHeight = window.innerHeight
+  
+  const screenX = (worldX * viewport.zoom) + (canvasWidth / 2 - viewport.x * viewport.zoom)
+  const screenY = (worldY * viewport.zoom) + (canvasHeight / 2 - viewport.y * viewport.zoom)
+  
+  return { x: screenX, y: screenY }
+}
 
 // 工具栏位置（显示在元素上方）
 const toolbarStyle = computed(() => {
   const padding = 8
   const toolbarHeight = 40
+  
+  // 转换为屏幕坐标
+  const screenPos = worldToScreen(props.elementX, props.elementY)
 
   return {
     position: 'absolute' as const,
-    left: `${props.elementX}px`,
-    top: `${props.elementY - toolbarHeight - padding}px`,
-    zIndex: 1001
+    left: `${screenPos.x}px`,
+    top: `${screenPos.y - toolbarHeight - padding}px`,
+    zIndex: 10001 // 确保在 TextEditor 之上
   }
 })
 </script>

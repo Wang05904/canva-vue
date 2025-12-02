@@ -30,7 +30,8 @@ export interface EventHandlers {
   // 选择变更
   onSelectionChange?: (elementIds: string[]) => void
   onCanvasClick?: () => void
-  onToolCreate?: (x: number, y: number, tool: string) => void
+  onToolCreate?: (x: number, y: number, tool: string) => string | void
+  onTextEdit?: (elementId: string) => void
   getCurrentTool?: () => string
   getSelectedIds?: () => string[]
   getAllElements?: () => AnyElement[]
@@ -307,8 +308,13 @@ export class EventService {
         if (currentTool === 'rectangle' || currentTool === 'circle' || currentTool === 'triangle' || currentTool === 'text') {
           // 绘图工具：创建元素（使用世界坐标）
           if (this.handlers.onToolCreate) {
-            this.handlers.onToolCreate(worldPos.x, worldPos.y, currentTool)
+            const elementId = this.handlers.onToolCreate(worldPos.x, worldPos.y, currentTool)
             console.log(`创建${currentTool}元素于 (${worldPos.x}, ${worldPos.y})`)
+
+            // 如果是文本工具且返回了元素ID，触发文本编辑
+            if (currentTool === 'text' && elementId && this.handlers.onTextEdit) {
+              this.handlers.onTextEdit(elementId)
+            }
           }
         } else if (currentTool === 'select') {
           // 选择工具：清空选择
