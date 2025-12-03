@@ -15,6 +15,7 @@ declare module 'vue' {
     AColorPicker: typeof import('@arco-design/web-vue')['ColorPicker']
     ADivider: typeof import('@arco-design/web-vue')['Divider']
     AModal: typeof import('@arco-design/web-vue')['Modal']
+    APopover: typeof import('@arco-design/web-vue')['Popover']
     ASlider: typeof import('@arco-design/web-vue')['Slider']
     ATrigger: typeof import('@arco-design/web-vue')['Trigger']
     RouterLink: typeof import('vue-router')['RouterLink']

@@ -7,6 +7,8 @@ import { Editor } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import { TextStyle } from '@tiptap/extension-text-style'
 import { Color } from '@tiptap/extension-color'
+import { Underline } from '@tiptap/extension-underline'
+import { Highlight } from '@tiptap/extension-highlight'
 import type { TextElement } from '@/cores/types/element'
 
 export function useTextEditor() {
@@ -41,7 +43,11 @@ export function useTextEditor() {
           }
         }),
         TextStyle,
-        Color
+        Color,
+        Underline,
+        Highlight.configure({
+          multicolor: true  // 支持多种背景颜色
+        })
       ],
       content: element.htmlContent || `<p>${element.content}</p>`,
       editable: true,

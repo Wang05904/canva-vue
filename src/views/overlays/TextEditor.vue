@@ -205,4 +205,10 @@ onBeforeUnmount(() => {
 .editor-content :deep(.tiptap-editor li) {
   margin: 0.25em 0;
 }
+
+/* 高亮背景 */
+.editor-content :deep(.tiptap-editor mark) {
+  padding: 0.1em 0.2em;
+  border-radius: 0.2em;
+}
 </style>
