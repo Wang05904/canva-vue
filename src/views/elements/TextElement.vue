@@ -20,12 +20,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, inject } from 'vue'
 import type { TextElement } from '@/cores/types/element'
 import { useElementsStore } from '@/stores/elements'
 import { useSelectionStore } from '@/stores/selection'
 import { useDragState } from '@/composables/useDragState'
 import { useAlignment } from '@/composables/useAlignment'
+import type { CanvasService } from '@/services/canvas/CanvasService'
 
 const props = defineProps<{
   element: TextElement
@@ -37,6 +38,7 @@ const emit = defineEmits<{
 
 const elementsStore = useElementsStore()
 const selectionStore = useSelectionStore()
+const canvasService = inject<CanvasService>('canvasService')
 const { startDrag, updateDragOffset, endDrag, getDragState } = useDragState()
 const { checkAlignment, clearAlignment } = useAlignment()
 
@@ -119,11 +121,17 @@ const handleMouseDown = (e: MouseEvent) => {
 
 // 鼠标移动 - 使用 RAF 节流 + 直接操作 DOM
 const handleMouseMove = (e: MouseEvent) => {
-  const dx = e.clientX - dragStartPos.value.x
-  const dy = e.clientY - dragStartPos.value.y
+  const screenDx = e.clientX - dragStartPos.value.x
+  const screenDy = e.clientY - dragStartPos.value.y
+
+  // Convert to world coordinates
+  const viewport = canvasService?.getViewportService().getViewport()
+  const zoom = viewport?.zoom || 1
+  const worldDx = screenDx / zoom
+  const worldDy = screenDy / zoom
 
   // 移动超过 3px 才认为是拖拽
-  if (!isDragging.value && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+  if (!isDragging.value && (Math.abs(screenDx) > 3 || Math.abs(screenDy) > 3)) {
     isDragging.value = true
     hasMoved.value = true
     if (elementRef.value) {
@@ -135,21 +143,21 @@ const handleMouseMove = (e: MouseEvent) => {
 
   if (!isDragging.value) return
 
-  // 立即更新拖拽偏移（SelectionOverlay 会监听这个）
-  updateDragOffset({ x: dx, y: dy })
+  // 立即更新拖拽偏移（使用世界坐标）
+  updateDragOffset({ x: worldDx, y: worldDy })
 
   // 使用 RAF 节流，避免频繁更新 DOM
   if (animationFrameId !== null) return
 
   animationFrameId = requestAnimationFrame(() => {
-    let finalDx = dx
-    let finalDy = dy
+    let finalDx = worldDx
+    let finalDy = worldDy
 
     // 应用对齐吸附
     if (initialBoundingBox) {
       const targetRect = {
-        x: initialBoundingBox.x + dx,
-        y: initialBoundingBox.y + dy,
+        x: initialBoundingBox.x + worldDx,
+        y: initialBoundingBox.y + worldDy,
         width: initialBoundingBox.width,
         height: initialBoundingBox.height
       }
@@ -183,13 +191,19 @@ const handleMouseUp = (e: MouseEvent) => {
   }
 
   if (hasMoved.value) {
-    const dx = e.clientX - dragStartPos.value.x
-    const dy = e.clientY - dragStartPos.value.y
+    const screenDx = e.clientX - dragStartPos.value.x
+    const screenDy = e.clientY - dragStartPos.value.y
+    
+    // Convert to world coordinates
+    const viewport = canvasService?.getViewportService().getViewport()
+    const zoom = viewport?.zoom || 1
+    const worldDx = screenDx / zoom
+    const worldDy = screenDy / zoom
 
     // 只在拖拽结束时更新 store
     elementsStore.updateTextElement(props.element.id, {
-      x: elementStartPos.value.x + dx,
-      y: elementStartPos.value.y + dy
+      x: elementStartPos.value.x + worldDx,
+      y: elementStartPos.value.y + worldDy
     })
     elementsStore.saveToLocal()
 
