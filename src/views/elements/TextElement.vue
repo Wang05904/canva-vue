@@ -53,6 +53,8 @@ let draggedIds: string[] = []
 
 // 容器样式 - 使用 transform3d 启用 GPU 加速
 const containerStyle = computed(() => {
+  const isGrouped = !!props.element.parentGroup
+
   // 检查是否在全局拖拽中（多选拖拽）
   const dragState = getDragState().value
   const isInGlobalDrag = dragState?.isDragging && dragState.elementIds.includes(props.element.id)
@@ -76,7 +78,7 @@ const containerStyle = computed(() => {
     transformOrigin: 'center center',
     opacity: props.element.opacity,
     visibility: (props.element.visible ? 'visible' : 'hidden') as 'visible' | 'hidden',
-    pointerEvents: 'auto' as const,
+    pointerEvents: (isGrouped ? 'none' : 'auto') as 'none' | 'auto',
     zIndex: 9999, // 固定高 z-index 确保在所有层之上，能接收事件
     fontSize: `${props.element.fontSize}px`,
     color: props.element.color,
@@ -193,7 +195,7 @@ const handleMouseUp = (e: MouseEvent) => {
   if (hasMoved.value) {
     const screenDx = e.clientX - dragStartPos.value.x
     const screenDy = e.clientY - dragStartPos.value.y
-    
+
     // Convert to world coordinates
     const viewport = canvasService?.getViewportService().getViewport()
     const zoom = viewport?.zoom || 1
