@@ -24,6 +24,7 @@ import type { TextElement } from '@/cores/types/element'
 import { useElementsStore } from '@/stores/elements'
 import { useSelectionStore } from '@/stores/selection'
 import { useDragState } from '@/composables/useDragState'
+import { useAlignment } from '@/composables/useAlignment'
 
 const props = defineProps<{
   element: TextElement
@@ -36,6 +37,7 @@ const emit = defineEmits<{
 const elementsStore = useElementsStore()
 const selectionStore = useSelectionStore()
 const { startDrag, updateDragOffset, endDrag, getDragState } = useDragState()
+const { checkAlignment, clearAlignment } = useAlignment()
 
 const isDragging = ref(false)
 const hasMoved = ref(false)
@@ -43,6 +45,8 @@ const dragStartPos = ref({ x: 0, y: 0 })
 const elementStartPos = ref({ x: 0, y: 0 })
 const elementRef = ref<HTMLElement | null>(null)
 let animationFrameId: number | null = null
+let initialBoundingBox: { x: number; y: number; width: number; height: number } | null = null
+let draggedIds: string[] = []
 
 // 容器样式 - 使用 transform3d 启用 GPU 加速
 const containerStyle = computed(() => {
@@ -98,6 +102,15 @@ const handleMouseDown = (e: MouseEvent) => {
   dragStartPos.value = { x: e.clientX, y: e.clientY }
   elementStartPos.value = { x: props.element.x, y: props.element.y }
   
+  // 计算初始边界框用于对齐
+  draggedIds = [props.element.id]
+  initialBoundingBox = {
+    x: props.element.x,
+    y: props.element.y,
+    width: props.element.width,
+    height: props.element.height
+  }
+  
   document.addEventListener('mousemove', handleMouseMove)
   document.addEventListener('mouseup', handleMouseUp)
 }
@@ -127,8 +140,25 @@ const handleMouseMove = (e: MouseEvent) => {
   if (animationFrameId !== null) return
   
   animationFrameId = requestAnimationFrame(() => {
-    const newX = elementStartPos.value.x + dx
-    const newY = elementStartPos.value.y + dy
+    let finalDx = dx
+    let finalDy = dy
+    
+    // 应用对齐吸附
+    if (initialBoundingBox) {
+      const targetRect = {
+        x: initialBoundingBox.x + dx,
+        y: initialBoundingBox.y + dy,
+        width: initialBoundingBox.width,
+        height: initialBoundingBox.height
+      }
+      
+      const { dx: snapDx, dy: snapDy } = checkAlignment(targetRect, draggedIds)
+      finalDx += snapDx
+      finalDy += snapDy
+    }
+    
+    const newX = elementStartPos.value.x + finalDx
+    const newY = elementStartPos.value.y + finalDy
     
     // 直接操作 DOM，不触发响应式更新
     if (elementRef.value) {
@@ -169,10 +199,13 @@ const handleMouseUp = (e: MouseEvent) => {
   
   // 结束全局拖拽状态
   endDrag()
+  clearAlignment()
   
   isDragging.value = false
   hasMoved.value = false
   elementRef.value = null
+  initialBoundingBox = null
+  draggedIds = []
 }
 
 // 双击进入编辑模式

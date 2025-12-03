@@ -9,7 +9,7 @@ View层 - 画布容器组件
     <image-toolbar />
     <selection-overlay />
     <mini-map />
-    
+
     <!-- 文本编辑工具栏 - 使用屏幕坐标，所以放在外面 -->
     <text-editor-toolbar
       v-if="editingTextElement && textEditor && isTextEditing"
@@ -19,13 +19,16 @@ View层 - 画布容器组件
       :element-y="editingTextElement.y"
       :element-width="editingTextElement.width"
     />
-    
+
     <div ref="container" class="pixi-canvas">
       <!-- 背景网格 -->
       <grid-background />
-      
+
       <!-- 世界容器 - 跟随画布变换 -->
       <div class="world-container" :style="worldContainerStyle">
+        <!-- 对齐辅助线 -->
+        <guidelines-overlay class="no-pointer-events" />
+
         <!-- 渲染图片元素 -->
         <image-element
           v-for="imageEl in imageElements"
@@ -33,7 +36,7 @@ View层 - 画布容器组件
           :element="imageEl"
         />
       </div>
-      
+
       <!-- 文本元素独立容器 - 移到外面确保能接收事件 -->
       <div class="text-container" :style="worldContainerStyle">
         <text-element
@@ -42,12 +45,12 @@ View层 - 画布容器组件
           :element="textEl"
           @dblclick="handleTextDoubleClick"
         />
-        
+
         <!-- 文本编辑器 - 使用世界坐标，放在 text-container 内跟随变换 -->
-        <text-editor 
+        <text-editor
           ref="textEditorRef"
           v-if="editingTextId"
-          :element-id="editingTextId" 
+          :element-id="editingTextId"
           @close="editingTextId = null"
         />
       </div>
@@ -65,6 +68,7 @@ import ImageToolbar from '../../views/ui/toolbar/ImageToolbar.vue'
 import SelectionOverlay from '../../views/overlays/SelectionOverlay.vue'
 import GridBackground from '../../views/canvas/GridBackground.vue'
 import MiniMap from '../../views/canvas/MiniMap.vue'
+import GuidelinesOverlay from '../overlays/GuidelinesOverlay.vue'
 import ImageElement from '../../views/elements/ImageElement.vue'
 import TextElement from '../../views/elements/TextElement.vue'
 import TextEditor from '../../views/overlays/TextEditor.vue'
@@ -112,7 +116,7 @@ const imageElements = computed(() => {
 
 // 获取所有文本元素（编辑中的文本元素不显示）
 const textElements = computed(() => {
-  return elementsStore.elements.filter(el => 
+  return elementsStore.elements.filter(el =>
     el.type === 'text' && el.id !== editingTextId.value
   ) as TextElementType[]
 })
@@ -122,11 +126,11 @@ const worldContainerStyle = computed(() => {
   const v = viewport.value
   const canvasWidth = window.innerWidth
   const canvasHeight = window.innerHeight
-  
+
   // 与 RenderService.updateViewportTransform 保持一致的变换逻辑
   const translateX = canvasWidth / 2 - v.x * v.zoom
   const translateY = canvasHeight / 2 - v.y * v.zoom
-  
+
   return {
     position: 'absolute' as const,
     left: '0',
@@ -165,7 +169,7 @@ onMounted(() => {
     requestAnimationFrame(animate)
   }
   animate()
-  
+
   // 监听键盘事件
   document.addEventListener('keydown', handleKeyDown)
 })
@@ -199,7 +203,7 @@ onUnmounted(() => {
   pointer-events: none;
 }
 
-.world-container > * {
+.world-container > *:not(.no-pointer-events) {
   pointer-events: auto;
 }
 

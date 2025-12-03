@@ -10,6 +10,7 @@
 import { Application, Graphics, FederatedPointerEvent, Container } from 'pixi.js'
 import type { AnyElement } from '@/cores/types/element'
 import { useDragState } from '@/composables/useDragState'
+import { useAlignment } from '@/composables/useAlignment'
 import type { ViewportService } from './ViewportService'
 
 /**
@@ -53,8 +54,11 @@ export class EventService {
   private dragTargetId: string | null = null
   private getElementIdByGraphic: ((graphic: Graphics) => string | undefined) | null = null
   private dragState = useDragState()
+  private alignment = useAlignment()
   private viewportService: ViewportService | null = null
   private worldContainer: Container | null = null
+  private initialBoundingBox: { x: number; y: number; width: number; height: number } | null = null
+  private draggedIds: string[] = []
 
   constructor() { }
 
@@ -154,10 +158,30 @@ export class EventService {
       // 计算并传递初始边界框给全局拖拽状态
       const selectedIds = this.handlers.getSelectedIds?.() || []
       const allElements = this.handlers.getAllElements?.() || []
-      const draggedIds = selectedIds.length > 1 && selectedIds.includes(elementId) ? selectedIds : [elementId]
+      
+      // 确定拖拽的元素列表
+      // 如果是多选状态（>1个元素）且当前元素在选中列表中，则拖拽所有选中元素
+      // 否则只拖拽当前点击的元素
+      let draggedIds: string[]
+      if (selectedIds.length > 1 && selectedIds.includes(elementId)) {
+        draggedIds = selectedIds
+      } else {
+        draggedIds = [elementId]
+      }
+      
+      // 防御性检查：确保 draggedIds 不为空
+      if (draggedIds.length === 0) {
+        console.warn('[对齐调试] draggedIds 为空，强制添加当前元素')
+        draggedIds = [elementId]
+      }
 
       // 计算初始边界框
       const draggedElements = draggedIds.map(id => allElements.find(el => el.id === id)).filter(el => el != null) as AnyElement[]
+      
+      if (draggedElements.length === 0) {
+        console.warn('[对齐调试] 未找到拖拽元素！', { draggedIds, allElementsCount: allElements.length })
+      }
+      
       let initialBoundingBox = null
       if (draggedElements.length > 0) {
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
@@ -174,6 +198,21 @@ export class EventService {
           height: maxY - minY
         }
       }
+
+      // 保存拖拽状态
+      this.draggedIds = draggedIds
+      this.initialBoundingBox = initialBoundingBox
+      
+      console.log('[对齐调试] 开始拖拽:', { 
+        elementId, 
+        draggedIds, 
+        initialBoundingBox,
+        selectedIds,
+        allElementsCount: allElements.length,
+        allElementIds: allElements.map(el => el.id),
+        draggedElementsFound: draggedElements.length,
+        draggedElementsIds: draggedElements.map(el => el.id)
+      })
 
       // 启动全局拖拽状态
       this.dragState.startDrag(draggedIds, initialBoundingBox)
@@ -196,8 +235,27 @@ export class EventService {
 
     // 处理拖拽
     if (this.isDragging && this.dragTargetId) {
-      const dx = worldPos.x - this.dragStartPos.x
-      const dy = worldPos.y - this.dragStartPos.y
+      let dx = worldPos.x - this.dragStartPos.x
+      let dy = worldPos.y - this.dragStartPos.y
+
+      // 应用对齐吸附
+      if (this.initialBoundingBox) {
+        const targetRect = {
+          x: this.initialBoundingBox.x + dx,
+          y: this.initialBoundingBox.y + dy,
+          width: this.initialBoundingBox.width,
+          height: this.initialBoundingBox.height
+        }
+        
+        const { dx: snapDx, dy: snapDy } = this.alignment.checkAlignment(targetRect, this.draggedIds)
+        
+        if (snapDx !== 0 || snapDy !== 0) {
+          console.log('[对齐调试] 检测到吸附:', { snapDx, snapDy, targetRect, draggedIds: this.draggedIds })
+        }
+        
+        dx += snapDx
+        dy += snapDy
+      }
 
       // 更新全局拖拽偏移
       this.dragState.updateDragOffset({ x: dx, y: dy })
@@ -289,9 +347,12 @@ export class EventService {
 
       // 结束全局拖拽状态
       this.dragState.endDrag()
+      this.alignment.clearAlignment()
 
       this.isDragging = false
       this.dragTargetId = null
+      this.initialBoundingBox = null
+      this.draggedIds = []
       return
     }
 

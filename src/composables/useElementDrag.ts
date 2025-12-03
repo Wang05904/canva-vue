@@ -11,6 +11,7 @@ import { ref, onUnmounted, inject } from 'vue'
 import { useElementsStore } from '@/stores/elements'
 import { useSelectionStore } from '@/stores/selection'
 import { useDragState } from './useDragState'
+import { useAlignment } from './useAlignment'
 import type { CanvasService } from '@/services/canvas/CanvasService'
 
 export function useElementDrag(elementId: string) {
@@ -18,6 +19,7 @@ export function useElementDrag(elementId: string) {
   const selectionStore = useSelectionStore()
   const canvasService = inject<CanvasService>('canvasService')
   const { startDrag: startGlobalDrag, updateDragOffset, endDrag: endGlobalDrag } = useDragState()
+  const { checkAlignment, clearAlignment } = useAlignment()
 
   const isDragging = ref(false)
   const dragStartPos = ref({ x: 0, y: 0 })
@@ -25,6 +27,8 @@ export function useElementDrag(elementId: string) {
   let animationFrameId: number | null = null
   let currentElement: HTMLElement | null = null
   let initialTransform = { x: 0, y: 0, rotation: 0 }
+  let initialBoundingBox: { x: number; y: number; width: number; height: number } | null = null
+  let draggedIds: string[] = []
 
   /**
    * 鼠标按下 - 开始拖拽
@@ -59,13 +63,13 @@ export function useElementDrag(elementId: string) {
     }
 
     // 确定实际拖拽的元素ID列表
-    const draggedIds = selectionStore.selectedIds.length > 1 && selectionStore.selectedIds.includes(elementId)
+    draggedIds = selectionStore.selectedIds.length > 1 && selectionStore.selectedIds.includes(elementId)
       ? selectionStore.selectedIds
       : [elementId]
 
-    // 计算初始边界框（用于 SelectionOverlay）
+    // 计算初始边界框（用于 SelectionOverlay 和对齐）
     const draggedElements = draggedIds.map(id => elementsStore.getElementById(id)).filter(el => el != null)
-    let initialBoundingBox = null
+    initialBoundingBox = null
     if (draggedElements.length > 0) {
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
       draggedElements.forEach(el => {
@@ -81,6 +85,8 @@ export function useElementDrag(elementId: string) {
         height: maxY - minY
       }
     }
+    
+    console.log('[对齐调试-DOM] 开始拖拽:', { elementId, draggedIds, initialBoundingBox })
 
     // 通知全局拖拽状态开始（传入初始边界框）
     isDragging.value = true
@@ -100,16 +106,49 @@ export function useElementDrag(elementId: string) {
   /**
    * 鼠标移动 - 拖拽中（使用 RAF 节流 + 直接 DOM 操作）
    */
+  /**
+   * 鼠标移动 - 拖拽中（使用 RAF 节流 + 直接 DOM 操作）
+   */
   const handleMouseMove = (e: MouseEvent) => {
     if (!isDragging.value) return
 
     const dx = e.clientX - dragStartPos.value.x
     const dy = e.clientY - dragStartPos.value.y
 
-    totalOffset.value = { x: dx, y: dy }
+    // 1. 计算未吸附前的目标位置
+    let newX = initialTransform.x + dx
+    let newY = initialTransform.y + dy
+    
+    // 2. 计算吸附修正
+    if (initialBoundingBox) {
+      const targetRect = {
+        x: initialBoundingBox.x + dx,
+        y: initialBoundingBox.y + dy,
+        width: initialBoundingBox.width,
+        height: initialBoundingBox.height
+      }
+      
+      const { dx: snapDx, dy: snapDy } = checkAlignment(targetRect, draggedIds)
+      
+      if (snapDx !== 0 || snapDy !== 0) {
+        console.log('[对齐调试-DOM] 检测到吸附:', { snapDx, snapDy })
+      }
+
+      // 应用吸附修正
+      newX = initialTransform.x + dx + snapDx
+      newY = initialTransform.y + dy + snapDy
+      
+      // 更新总偏移量（包含吸附）
+      totalOffset.value = { 
+        x: newX - initialTransform.x, 
+        y: newY - initialTransform.y 
+      }
+    } else {
+      totalOffset.value = { x: dx, y: dy }
+    }
 
     // 立即更新全局拖拽偏移（不等待 RAF）
-    updateDragOffset({ x: dx, y: dy })
+    updateDragOffset(totalOffset.value)
 
     // 使用 RAF 节流
     if (animationFrameId !== null) {
@@ -117,12 +156,12 @@ export function useElementDrag(elementId: string) {
     }
 
     animationFrameId = requestAnimationFrame(() => {
-      const newX = initialTransform.x + totalOffset.value.x
-      const newY = initialTransform.y + totalOffset.value.y
-
       // 直接操作 DOM，使用 translate3d 启用 GPU 加速
       if (currentElement) {
-        currentElement.style.transform = `translate3d(${newX}px, ${newY}px, 0) rotate(${initialTransform.rotation}deg)`
+        // 注意：这里使用 totalOffset，因为它已经包含了吸附修正
+        const finalX = initialTransform.x + totalOffset.value.x
+        const finalY = initialTransform.y + totalOffset.value.y
+        currentElement.style.transform = `translate3d(${finalX}px, ${finalY}px, 0) rotate(${initialTransform.rotation}deg)`
       }
 
       // 同步更新 Canvas 元素位置（如果存在）
@@ -145,7 +184,9 @@ export function useElementDrag(elementId: string) {
           canvasService.batchUpdatePositions(updates)
         } else {
           // 单选拖拽
-          canvasService.updateElementPosition(elementId, newX, newY)
+          const finalX = initialTransform.x + totalOffset.value.x
+          const finalY = initialTransform.y + totalOffset.value.y
+          canvasService.updateElementPosition(elementId, finalX, finalY)
         }
       }
 
@@ -158,6 +199,9 @@ export function useElementDrag(elementId: string) {
    */
   const handleMouseUp = () => {
     if (!isDragging.value) return
+
+    // 清除辅助线
+    clearAlignment()
 
     // 取消待处理的动画帧
     if (animationFrameId !== null) {
@@ -195,6 +239,8 @@ export function useElementDrag(elementId: string) {
     isDragging.value = false
     totalOffset.value = { x: 0, y: 0 }
     currentElement = null
+    initialBoundingBox = null
+    draggedIds = []
 
     // 结束全局拖拽状态
     endGlobalDrag()
