@@ -25,7 +25,7 @@ View层 - 画布容器组件
       <grid-background />
 
       <!-- 世界容器 - 跟随画布变换 -->
-      <div class="world-container" :style="worldContainerStyle">
+      <div class="world-container" :style="worldContainerStyle" :class="{ 'panning': isPanning }">
         <!-- 对齐辅助线 -->
         <guidelines-overlay class="no-pointer-events" />
 
@@ -38,7 +38,7 @@ View层 - 画布容器组件
       </div>
 
       <!-- 文本元素独立容器 - 移到外面确保能接收事件 -->
-      <div class="text-container" :style="worldContainerStyle">
+      <div class="text-container" :style="worldContainerStyle" :class="{ 'panning': isPanning }">
         <text-element
           v-for="textEl in textElements"
           :key="textEl.id"
@@ -82,6 +82,9 @@ const { container, canvasService } = useCanvas()
 const elementsStore = useElementsStore()
 const canvasStore = useCanvasStore()
 const { viewport } = storeToRefs(canvasStore)
+
+// 平移状态（根据当前工具判断）
+const isPanning = computed(() => canvasStore.currentTool === 'pan')
 
 // 提供 canvasService 给子组件使用
 provide('canvasService', canvasService)
@@ -207,6 +210,11 @@ onUnmounted(() => {
   pointer-events: auto;
 }
 
+/* 平移时禁用所有元素交互 */
+.world-container.panning > * {
+  pointer-events: none !important;
+}
+
 .text-container {
   position: absolute;
   top: 0;
@@ -219,5 +227,10 @@ onUnmounted(() => {
 
 .text-container > * {
   pointer-events: auto; /* 文本元素接收事件 */
+}
+
+/* 平移时禁用所有文本元素交互 */
+.text-container.panning > * {
+  pointer-events: none !important;
 }
 </style>

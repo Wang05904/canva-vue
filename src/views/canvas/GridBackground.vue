@@ -1,5 +1,5 @@
 <template>
-  <svg class="grid-background" :viewBox="`0 0 ${canvasWidth} ${canvasHeight}`">
+  <svg class="grid-background" :viewBox="`0 0 ${canvasWidth} ${canvasHeight}`" shape-rendering="crispEdges">
     <!-- 小网格 -->
     <defs>
       <pattern 
@@ -119,17 +119,14 @@ const patternTransform = computed(() => {
 
 // 网格颜色配置
 const smallGridColor = computed(() => {
-  // 使用更细腻的颜色
-  return 'rgba(0, 0, 0, 0.06)'
+  return '#F1F5F9'
 })
 
 const largeGridColor = computed(() => {
-  // 大网格稍微深一点
-  return 'rgba(0, 0, 0, 0.12)'
+  return '#E2E8F0'
 })
 
 const smallStrokeWidth = computed(() => {
-  // 保持 1px 的物理像素显示，看起来更精致
   return 1
 })
 

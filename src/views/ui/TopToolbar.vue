@@ -461,28 +461,42 @@ const handleFileChange = async (event: Event) => {
 <style scoped>
 .top-toolbar {
   position: absolute;
-  top: 16px;
+  top: 20px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.1), 
+    0 2px 4px -1px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(0, 0, 0, 0.05);
   z-index: 100;
+  transition: all 0.3s ease;
+}
+
+.top-toolbar:hover {
+  box-shadow: 
+    0 10px 15px -3px rgba(0, 0, 0, 0.1), 
+    0 4px 6px -2px rgba(0, 0, 0, 0.05),
+    0 0 0 1px rgba(0, 0, 0, 0.05);
+  transform: translateX(-50%) translateY(-2px);
 }
 
 .toolbar-group {
   display: flex;
+  align-items: center;
   gap: 4px;
 }
 
 .divider {
   width: 1px;
-  height: 24px;
-  background-color: #e0e0e0;
+  height: 20px;
+  background-color: #e5e7eb;
   margin: 0 4px;
 }
 
@@ -494,45 +508,70 @@ const handleFileChange = async (event: Event) => {
   height: 36px;
   border: none;
   background: transparent;
-  border-radius: 6px;
-  color: #555;
+  border-radius: 8px;
+  color: #6b7280;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
 }
 
-.tool-btn:hover {
-  background-color: #f0f0f0;
-  color: #333;
+.tool-btn:hover:not(:disabled) {
+  background-color: #f3f4f6;
+  color: #1f2937;
+}
+
+.tool-btn:active:not(:disabled) {
+  transform: scale(0.95);
+  background-color: #e5e7eb;
 }
 
 .tool-btn.active {
-  background-color: #e6f0ff;
-  color: #0066ff;
+  background-color: #eff6ff;
+  color: #3b82f6;
+}
+
+.tool-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .tool-btn svg {
   display: block;
+  width: 20px;
+  height: 20px;
+}
+
+/* 针对不同图标的微调 */
+.tool-btn .icon {
+  width: 20px;
+  height: 20px;
 }
 
 .zoom-controls {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
 }
 
 .zoom-display {
-  min-width: 60px;
+  min-width: 64px;
   padding: 0 8px;
-  cursor: pointer;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
 .zoom-text {
   font-size: 13px;
-  font-weight: 500;
-  color: #555;
+  font-weight: 600;
+  color: #4b5563;
+  font-variant-numeric: tabular-nums;
 }
 
 .zoom-display:hover .zoom-text {
-  color: #0066ff;
+  color: #3b82f6;
+}
+
+/* 添加工具提示样式 */
+.tool-btn[title] {
+  position: relative;
 }
 </style>

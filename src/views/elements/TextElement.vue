@@ -115,6 +115,7 @@ const handleMouseDown = (e: MouseEvent) => {
       if (groupElements.length > 0) {
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
         groupElements.forEach(el => {
+          if(!el) return
           minX = Math.min(minX, el.x)
           minY = Math.min(minY, el.y)
           maxX = Math.max(maxX, el.x + el.width)
