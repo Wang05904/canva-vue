@@ -256,7 +256,9 @@ export class EventService {
         this.worldContainer.addChild(this.selectionBox)
       }
     }
-  }  /**
+  }
+
+  /**
    * 统一处理鼠标移动事件
    */
   private handlePointerMove(event: FederatedPointerEvent): void {

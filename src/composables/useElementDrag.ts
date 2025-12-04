@@ -122,9 +122,6 @@ export function useElementDrag(elementId: string) {
   /**
    * 鼠标移动 - 拖拽中（使用 RAF 节流 + 直接 DOM 操作）
    */
-  /**
-   * 鼠标移动 - 拖拽中（使用 RAF 节流 + 直接 DOM 操作）
-   */
   const handleMouseMove = (e: MouseEvent) => {
     if (!isDragging.value) return
 
