@@ -206,18 +206,23 @@ export const useElementsStore = defineStore('elements', {
      * @param dy 垂直移动距离
      */
     moveElements(ids: string[], dx: number, dy: number) {
-      ids.forEach(id => {
-        const el = this.elements.find((e) => e.id === id)
-        if (el) {
-          el.x += dx
-          el.y += dy
-          el.updatedAt = Date.now()
+      const idSet = new Set(ids)
+      const now = Date.now()
+
+      // 一次性批量构造新数组（极大减少响应式开销）
+      this.elements = this.elements.map(el => {
+        if (!idSet.has(el.id)) return el
+
+        // 返回新的元素对象（不可变更新）
+        return {
+          ...el,
+          x: el.x + dx,
+          y: el.y + dy,
+          updatedAt: now
         }
       })
 
-      // 移动后记录快照
-      // 创建新数组引用，触发 watch
-      this.elements = [...this.elements]
+      // 下面逻辑保持完全不变（顺序也不变）
       this.recordSnapshot()
       this.saveToLocal()
     },
