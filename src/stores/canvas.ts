@@ -12,8 +12,7 @@ export const useCanvasStore = defineStore('canvas', {
     viewport: {
       x: 0,
       y: 0,
-      zoom: 1,
-      rotation: 0
+      zoom: 1
     } as ViewportState
   }),
 

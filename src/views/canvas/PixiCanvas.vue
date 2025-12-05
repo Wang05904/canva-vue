@@ -25,7 +25,7 @@ View层 - 画布容器组件
       <grid-background />
 
       <!-- 世界容器 - 跟随画布变换 -->
-      <div class="world-container" :style="worldContainerStyle">
+      <div class="world-container" :style="worldContainerStyle" :class="{ 'panning': isPanning }">
         <!-- 对齐辅助线 -->
         <guidelines-overlay class="no-pointer-events" />
 
@@ -38,7 +38,7 @@ View层 - 画布容器组件
       </div>
 
       <!-- 文本元素独立容器 - 移到外面确保能接收事件 -->
-      <div class="text-container" :style="worldContainerStyle">
+      <div class="text-container" :style="worldContainerStyle" :class="{ 'panning': isPanning }">
         <text-element
           v-for="textEl in textElements"
           :key="textEl.id"
@@ -60,7 +60,6 @@ View层 - 画布容器组件
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, provide, computed } from 'vue'
-import Stats from 'stats.js'
 import { storeToRefs } from 'pinia'
 import TopToolbar from '../../views/ui/TopToolbar.vue'
 import FloatingToolbar from '../../views/ui/FloatingToolbar.vue'
@@ -82,6 +81,9 @@ const { container, canvasService } = useCanvas()
 const elementsStore = useElementsStore()
 const canvasStore = useCanvasStore()
 const { viewport } = storeToRefs(canvasStore)
+
+// 平移状态（根据当前工具判断）
+const isPanning = computed(() => canvasStore.currentTool === 'pan')
 
 // 提供 canvasService 给子组件使用
 provide('canvasService', canvasService)
@@ -138,7 +140,7 @@ const worldContainerStyle = computed(() => {
     width: '100%',
     height: '100%',
     transformOrigin: '0 0',
-    transform: `translate(${translateX}px, ${translateY}px) scale(${v.zoom}) rotate(${v.rotation}rad)`
+    transform: `translate(${translateX}px, ${translateY}px) scale(${v.zoom})`
   }
 })
 
@@ -154,30 +156,12 @@ const handleKeyDown = (e: KeyboardEvent) => {
   }
 }
 
-// todo 测试 stats.js 性能监控，正式环境移除
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let stats: any = null
 onMounted(() => {
-  stats = new Stats()
-  stats.showPanel(0) // 0: fps, 1: ms, 2: mb, 3: custom
-  document.body.appendChild(stats.dom)
-
-  function animate() {
-    stats.begin()
-    // ...你的渲染逻辑...
-    stats.end()
-    requestAnimationFrame(animate)
-  }
-  animate()
-
   // 监听键盘事件
   document.addEventListener('keydown', handleKeyDown)
 })
 
 onUnmounted(() => {
-  if (stats && stats.dom && stats.dom.parentNode) {
-    stats.dom.parentNode.removeChild(stats.dom)
-  }
   document.removeEventListener('keydown', handleKeyDown)
 })
 </script>
@@ -207,6 +191,11 @@ onUnmounted(() => {
   pointer-events: auto;
 }
 
+/* 平移时禁用所有元素交互 */
+.world-container.panning > * {
+  pointer-events: none !important;
+}
+
 .text-container {
   position: absolute;
   top: 0;
@@ -219,5 +208,10 @@ onUnmounted(() => {
 
 .text-container > * {
   pointer-events: auto; /* 文本元素接收事件 */
+}
+
+/* 平移时禁用所有文本元素交互 */
+.text-container.panning > * {
+  pointer-events: none !important;
 }
 </style>

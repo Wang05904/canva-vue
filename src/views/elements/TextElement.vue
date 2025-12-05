@@ -28,6 +28,7 @@ import { useSelectionStore } from '@/stores/selection'
 import { useDragState } from '@/composables/useDragState'
 import { useAlignment } from '@/composables/useAlignment'
 import type { CanvasService } from '@/services/canvas/CanvasService'
+import { CoordinateTransform } from '@/cores/viewport/CoordinateTransform'
 
 const props = defineProps<{
   element: TextElement
@@ -115,6 +116,7 @@ const handleMouseDown = (e: MouseEvent) => {
       if (groupElements.length > 0) {
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
         groupElements.forEach(el => {
+          if(!el) return
           minX = Math.min(minX, el.x)
           minY = Math.min(minY, el.y)
           maxX = Math.max(maxX, el.x + el.width)
@@ -169,10 +171,12 @@ const handleMouseMove = (e: MouseEvent) => {
   const screenDy = e.clientY - dragStartPos.value.y
 
   // Convert to world coordinates
-  const viewport = canvasService?.getViewportService().getViewport()
-  const zoom = viewport?.zoom || 1
-  const worldDx = screenDx / zoom
-  const worldDy = screenDy / zoom
+  const viewport = canvasService!.getViewportService().getViewport()
+  const { dx: worldDx, dy: worldDy } = CoordinateTransform.screenDeltaToWorldDelta(
+    screenDx,
+    screenDy,
+    viewport
+  )
 
   // 移动超过 3px 才认为是拖拽
   if (!isDragging.value && (Math.abs(screenDx) > 3 || Math.abs(screenDy) > 3)) {
@@ -239,10 +243,8 @@ const handleMouseUp = (e: MouseEvent) => {
     const screenDy = e.clientY - dragStartPos.value.y
 
     // Convert to world coordinates
-    const viewport = canvasService?.getViewportService().getViewport()
-    const zoom = viewport?.zoom || 1
-    const worldDx = screenDx / zoom
-    const worldDy = screenDy / zoom
+    const viewport = canvasService!.getViewportService().getViewport()
+    const { dx: worldDx, dy: worldDy } = CoordinateTransform.screenDeltaToWorldDelta(screenDx,screenDy,viewport)
 
     // 只在拖拽结束时更新 store
     elementsStore.updateTextElement(props.element.id, {
@@ -274,10 +276,8 @@ const handleGroupDragMove = (e: MouseEvent) => {
   const screenDy = e.clientY - dragStartPos.value.y
   
   // Convert to world coordinates
-  const viewport = canvasService?.getViewportService().getViewport()
-  const zoom = viewport?.zoom || 1
-  const worldDx = screenDx / zoom
-  const worldDy = screenDy / zoom
+  const viewport = canvasService!.getViewportService().getViewport()
+  const { dx: worldDx, dy: worldDy } = CoordinateTransform.screenDeltaToWorldDelta(screenDx,screenDy,viewport)
   
   // 移动超过 3px 才认为是拖拽
   if (!hasMoved.value && (Math.abs(screenDx) > 3 || Math.abs(screenDy) > 3)) {
@@ -370,10 +370,8 @@ const handleGroupDragUp = (e: MouseEvent) => {
     const screenDy = e.clientY - dragStartPos.value.y
     
     // Convert to world coordinates
-    const viewport = canvasService?.getViewportService().getViewport()
-    const zoom = viewport?.zoom || 1
-    const worldDx = screenDx / zoom
-    const worldDy = screenDy / zoom
+    const viewport = canvasService!.getViewportService().getViewport()
+    const { dx: worldDx, dy: worldDy } = CoordinateTransform.screenDeltaToWorldDelta(screenDx,screenDy,viewport)
     
     // 应用对齐吸附
     let finalDx = worldDx

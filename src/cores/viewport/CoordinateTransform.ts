@@ -7,7 +7,8 @@
  * 3. 计算可见区域边界
  * 4. 支持缩放和平移变换
  */
-import type { Point, ViewportState, VisibleBounds } from '../types/canvas'
+import type { ViewportState, VisibleBounds } from '../types/canvas'
+import type { Point } from '../types/element'
 
 export class CoordinateTransform {
     /**
@@ -34,20 +35,9 @@ export class CoordinateTransform {
         const scaledX = centerX / viewport.zoom
         const scaledY = centerY / viewport.zoom
 
-        // 3. 处理旋转（如果有）
-        let worldX = scaledX
-        let worldY = scaledY
-
-        if (viewport.rotation !== 0) {
-            const cos = Math.cos(-viewport.rotation)
-            const sin = Math.sin(-viewport.rotation)
-            worldX = scaledX * cos - scaledY * sin
-            worldY = scaledX * sin + scaledY * cos
-        }
-
-        // 4. 加上相机在世界中的位置
-        worldX += viewport.x
-        worldY += viewport.y
+        // 3. 加上相机在世界中的位置
+        const worldX = scaledX + viewport.x
+        const worldY = scaledY + viewport.y
 
         return { x: worldX, y: worldY }
     }
@@ -69,56 +59,18 @@ export class CoordinateTransform {
         viewportHeight: number
     ): Point {
         // 1. 转换为相对于相机的坐标
-        let relativeX = worldX - viewport.x
-        let relativeY = worldY - viewport.y
+        const relativeX = worldX - viewport.x
+        const relativeY = worldY - viewport.y
 
-        // 2. 处理旋转（如果有）
-        if (viewport.rotation !== 0) {
-            const cos = Math.cos(viewport.rotation)
-            const sin = Math.sin(viewport.rotation)
-            const rotatedX = relativeX * cos - relativeY * sin
-            const rotatedY = relativeX * sin + relativeY * cos
-            relativeX = rotatedX
-            relativeY = rotatedY
-        }
-
-        // 3. 应用缩放
+        // 2. 应用缩放
         const scaledX = relativeX * viewport.zoom
         const scaledY = relativeY * viewport.zoom
 
-        // 4. 转换为屏幕坐标（以视口中心为原点 -> 以左上角为原点）
+        // 3. 转换为屏幕坐标（以视口中心为原点 -> 以左上角为原点）
         const screenX = scaledX + viewportWidth / 2
         const screenY = scaledY + viewportHeight / 2
 
         return { x: screenX, y: screenY }
-    }
-
-    /**
-     * 批量转换：屏幕坐标转世界坐标
-     */
-    static screenPointsToWorld(
-        points: Point[],
-        viewport: ViewportState,
-        viewportWidth: number,
-        viewportHeight: number
-    ): Point[] {
-        return points.map(point =>
-            this.screenToWorld(point.x, point.y, viewport, viewportWidth, viewportHeight)
-        )
-    }
-
-    /**
-     * 批量转换：世界坐标转屏幕坐标
-     */
-    static worldPointsToScreen(
-        points: Point[],
-        viewport: ViewportState,
-        viewportWidth: number,
-        viewportHeight: number
-    ): Point[] {
-        return points.map(point =>
-            this.worldToScreen(point.x, point.y, viewport, viewportWidth, viewportHeight)
-        )
     }
 
     /**
@@ -186,19 +138,22 @@ export class CoordinateTransform {
     }
 
     /**
-     * 判断世界坐标中的点是否在可见区域内
+     * 将屏幕空间的偏移量转换为世界空间的偏移量
+     * @param screenDx 屏幕X方向偏移
+     * @param screenDy 屏幕Y方向偏移
+     * @param viewport 视口状态
+     * @returns 世界坐标偏移量
      */
-    static isPointVisible(
-        worldX: number,
-        worldY: number,
-        visibleBounds: VisibleBounds
-    ): boolean {
-        return (
-            worldX >= visibleBounds.left &&
-            worldX <= visibleBounds.right &&
-            worldY >= visibleBounds.top &&
-            worldY <= visibleBounds.bottom
-        )
+    static screenDeltaToWorldDelta(
+        screenDx: number,
+        screenDy: number,
+        viewport: ViewportState
+    ): { dx: number; dy: number } {
+        // 只考虑缩放,不考虑画布旋转
+        return {
+            dx: screenDx / viewport.zoom,
+            dy: screenDy / viewport.zoom
+        }
     }
 
     /**
@@ -236,43 +191,5 @@ export class CoordinateTransform {
             x: worldPoint.x - centerOffsetX,
             y: worldPoint.y - centerOffsetY
         }
-    }
-
-    /**
-     * 限制视口在世界边界内
-     */
-    static clampToBounds(
-        viewport: ViewportState,
-        viewportWidth: number,
-        viewportHeight: number,
-        worldBounds: { x: number; y: number; width: number; height: number }
-    ): Point {
-        // 计算当前可见区域的尺寸（世界坐标）
-        const visibleWidth = viewportWidth / viewport.zoom
-        const visibleHeight = viewportHeight / viewport.zoom
-
-        // 限制相机位置
-        let clampedX = viewport.x
-        let clampedY = viewport.y
-
-        // 如果可见区域大于世界边界，居中显示
-        if (visibleWidth >= worldBounds.width) {
-            clampedX = worldBounds.x + worldBounds.width / 2
-        } else {
-            // 限制在边界内
-            const minX = worldBounds.x + visibleWidth / 2
-            const maxX = worldBounds.x + worldBounds.width - visibleWidth / 2
-            clampedX = Math.max(minX, Math.min(maxX, viewport.x))
-        }
-
-        if (visibleHeight >= worldBounds.height) {
-            clampedY = worldBounds.y + worldBounds.height / 2
-        } else {
-            const minY = worldBounds.y + visibleHeight / 2
-            const maxY = worldBounds.y + worldBounds.height - visibleHeight / 2
-            clampedY = Math.max(minY, Math.min(maxY, viewport.y))
-        }
-
-        return { x: clampedX, y: clampedY }
     }
 }

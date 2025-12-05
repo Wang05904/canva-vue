@@ -17,7 +17,6 @@ export function useViewport(viewportService: ViewportService) {
     // getter
     const zoom = computed(() => viewport.value.zoom)
     const position = computed(() => ({ x: viewport.value.x, y: viewport.value.y }))
-    const rotation = computed(() => viewport.value.rotation)
 
     /**
      * 同步ViewportService的状态到Store
@@ -190,7 +189,6 @@ export function useViewport(viewportService: ViewportService) {
         viewport,
         zoom,
         position,
-        rotation,
 
         // 缩放操作
         setZoom,

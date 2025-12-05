@@ -10,11 +10,6 @@ const routes = [
     component: () => import('@/views/TestElementStore.vue')
   },
   {
-    path:'/test-tiptap',
-    name: 'TestTiptap',
-    component: () => import('@/views/test/tiptapView.vue')
-  },
-  {
     path: '/test/stores',
     name: 'TestStore',
     component: () => import('@/views/TestElementStore.vue')

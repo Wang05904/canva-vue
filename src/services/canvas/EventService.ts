@@ -11,7 +11,7 @@ import { Application, Graphics, FederatedPointerEvent, Container } from 'pixi.js
 import type { AnyElement, GroupElement } from '@/cores/types/element'
 import { useDragState } from '@/composables/useDragState'
 import { useAlignment } from '@/composables/useAlignment'
-import type { ViewportService } from './ViewportService'
+import type { ViewportService } from '@/services'
 
 /**
  * 事件处理器接口

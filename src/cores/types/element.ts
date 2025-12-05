@@ -41,12 +41,12 @@ export interface TextElement extends CanvasElement {
 
 // 图形元素类型
 export interface ShapeElement extends CanvasElement {
-      type: 'shape'
-      shapeType: 'rectangle' | 'circle' | 'triangle' | 'roundedRect'
-      fillColor: string
-      strokeWidth: number
-      strokeColor: string
-      borderRadius?: number // 圆角半径，默认10px
+  type: 'shape'
+  shapeType: 'rectangle' | 'circle' | 'triangle' | 'roundedRect'
+  fillColor: string
+  strokeWidth: number
+  strokeColor: string
+  borderRadius?: number // 圆角半径，默认10px
 }
 
 // 图片元素类型

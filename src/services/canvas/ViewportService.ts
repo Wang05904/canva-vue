@@ -2,7 +2,7 @@
  * Service层-视口服务
  * 功能：处理视口相关业务逻辑（状态管理、缩放、平移等）
  * 服务对象：为Composables层的useCanvas提供视口操作支持
- * 
+ *
  * 职责：
  * 1. 管理视口状态（位置、缩放、旋转）
  * 2. 提供缩放操作（缩放到点、缩放到区域、适应画布）
@@ -10,8 +10,9 @@
  * 4. 边界限制和约束
  * 5. 动画过渡效果
  */
-import type { ViewportState, ViewportConfig, Point, VisibleBounds, Rectangle } from '@/cores/types/canvas'
+import type { ViewportState, ViewportConfig, VisibleBounds, Rectangle } from '@/cores/types/canvas'
 import { CoordinateTransform } from '@/cores/viewport/CoordinateTransform'
+import type { Point } from '@/cores/types/element.ts'
 
 export class ViewportService {
   private viewport: ViewportState
@@ -34,9 +35,6 @@ export class ViewportService {
       maxZoom: 4,
       defaultZoom: 1,
       zoomStep: 0.1,
-      enableBounds: false,
-      enableInertia: true,
-      inertiaDamping: 0.95,
       ...config
     }
 
@@ -44,8 +42,7 @@ export class ViewportService {
     this.viewport = {
       x: 0,
       y: 0,
-      zoom: this.config.defaultZoom,
-      rotation: 0
+      zoom: this.config.defaultZoom
     }
   }
 
@@ -81,13 +78,9 @@ export class ViewportService {
   /**
    * 设置视口位置
    */
-  setPosition(x: number, y: number, skipBoundsCheck = false): void {
+  setPosition(x: number, y: number): void {
     this.viewport.x = x
     this.viewport.y = y
-
-    if (!skipBoundsCheck && this.config.enableBounds && this.config.worldBounds) {
-      this.applyBoundsConstraint()
-    }
   }
 
   /**
@@ -132,11 +125,6 @@ export class ViewportService {
     }
 
     this.viewport.zoom = clampedZoom
-
-    // 应用边界约束
-    if (this.config.enableBounds && this.config.worldBounds) {
-      this.applyBoundsConstraint()
-    }
   }
 
   /**
@@ -259,74 +247,6 @@ export class ViewportService {
     this.viewport.x = 0
     this.viewport.y = 0
     this.viewport.zoom = this.config.defaultZoom
-    this.viewport.rotation = 0
-  }
-
-  /**
-   * 开始惯性滚动
-   */
-  startInertia(velocityX: number, velocityY: number): void {
-    if (!this.config.enableInertia) return
-
-    this.velocityX = velocityX
-    this.velocityY = velocityY
-
-    // 停止之前的惯性动画
-    if (this.inertiaAnimationId !== null) {
-      cancelAnimationFrame(this.inertiaAnimationId)
-    }
-
-    this.animateInertia()
-  }
-
-  /**
-   * 停止惯性滚动
-   */
-  stopInertia(): void {
-    this.velocityX = 0
-    this.velocityY = 0
-
-    if (this.inertiaAnimationId !== null) {
-      cancelAnimationFrame(this.inertiaAnimationId)
-      this.inertiaAnimationId = null
-    }
-  }
-
-  /**
-   * 惯性动画
-   */
-  private animateInertia(): void {
-    // 速度太小时停止
-    if (Math.abs(this.velocityX) < 0.1 && Math.abs(this.velocityY) < 0.1) {
-      this.stopInertia()
-      return
-    }
-
-    // 应用速度
-    this.pan(this.velocityX, this.velocityY)
-
-    // 应用阻尼
-    this.velocityX *= this.config.inertiaDamping
-    this.velocityY *= this.config.inertiaDamping
-
-    this.inertiaAnimationId = requestAnimationFrame(() => this.animateInertia())
-  }
-
-  /**
-   * 应用边界约束
-   */
-  private applyBoundsConstraint(): void {
-    if (!this.config.worldBounds) return
-
-    const clamped = CoordinateTransform.clampToBounds(
-      this.viewport,
-      this.viewportWidth,
-      this.viewportHeight,
-      this.config.worldBounds
-    )
-
-    this.viewport.x = clamped.x
-    this.viewport.y = clamped.y
   }
 
   /**
@@ -385,7 +305,6 @@ export class ViewportService {
    * 清理资源
    */
   destroy(): void {
-    this.stopInertia()
 
     if (this.animationId !== null) {
       cancelAnimationFrame(this.animationId)
