@@ -186,6 +186,25 @@ export class CoordinateTransform {
     }
 
     /**
+     * 将屏幕空间的偏移量转换为世界空间的偏移量
+     * @param screenDx 屏幕X方向偏移
+     * @param screenDy 屏幕Y方向偏移
+     * @param viewport 视口状态
+     * @returns 世界坐标偏移量
+     */
+    static screenDeltaToWorldDelta(
+        screenDx: number,
+        screenDy: number,
+        viewport: ViewportState
+    ): { dx: number; dy: number } {
+        // 只考虑缩放,不考虑画布旋转
+        return {
+            dx: screenDx / viewport.zoom,
+            dy: screenDy / viewport.zoom
+        }
+    }
+
+    /**
      * 判断世界坐标中的点是否在可见区域内
      */
     static isPointVisible(

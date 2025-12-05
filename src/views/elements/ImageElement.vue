@@ -23,6 +23,7 @@ import { useAlignment } from '@/composables/useAlignment'
 import { useElementsStore } from '@/stores/elements'
 import { useSelectionStore } from '@/stores/selection'
 import type { CanvasService } from '@/services/canvas/CanvasService'
+import { CoordinateTransform } from '@/cores/viewport/CoordinateTransform'
 
 const props = defineProps<{
   element: ImageElement
@@ -49,11 +50,9 @@ const handleGroupDragMove = (e: MouseEvent) => {
   const screenDy = e.clientY - dragStartPos.value.y
   
   // Convert to world coordinates
-  const viewport = canvasService?.getViewportService().getViewport()
-  const zoom = viewport?.zoom || 1
-  const worldDx = screenDx / zoom
-  const worldDy = screenDy / zoom
-  
+  const viewport = canvasService!.getViewportService().getViewport()
+  const { dx: worldDx, dy: worldDy } = CoordinateTransform.screenDeltaToWorldDelta(screenDx,screenDy,viewport)
+
   // 移动超过 3px 才认为是拖拽
   if (!hasMoved.value && (Math.abs(screenDx) > 3 || Math.abs(screenDy) > 3)) {
     hasMoved.value = true
@@ -145,11 +144,9 @@ const handleGroupDragUp = (e: MouseEvent) => {
     const screenDy = e.clientY - dragStartPos.value.y
     
     // Convert to world coordinates
-    const viewport = canvasService?.getViewportService().getViewport()
-    const zoom = viewport?.zoom || 1
-    const worldDx = screenDx / zoom
-    const worldDy = screenDy / zoom
-    
+    const viewport = canvasService!.getViewportService().getViewport()
+    const { dx: worldDx, dy: worldDy } = CoordinateTransform.screenDeltaToWorldDelta(screenDx,screenDy,viewport)
+
     // 应用对齐吸附
     let finalDx = worldDx
     let finalDy = worldDy

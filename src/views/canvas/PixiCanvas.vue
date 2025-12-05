@@ -60,7 +60,6 @@ View层 - 画布容器组件
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, provide, computed } from 'vue'
-import Stats from 'stats.js'
 import { storeToRefs } from 'pinia'
 import TopToolbar from '../../views/ui/TopToolbar.vue'
 import FloatingToolbar from '../../views/ui/FloatingToolbar.vue'
@@ -157,30 +156,12 @@ const handleKeyDown = (e: KeyboardEvent) => {
   }
 }
 
-// todo 测试 stats.js 性能监控，正式环境移除
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let stats: any = null
 onMounted(() => {
-  stats = new Stats()
-  stats.showPanel(0) // 0: fps, 1: ms, 2: mb, 3: custom
-  document.body.appendChild(stats.dom)
-
-  function animate() {
-    stats.begin()
-    // ...你的渲染逻辑...
-    stats.end()
-    requestAnimationFrame(animate)
-  }
-  animate()
-
   // 监听键盘事件
   document.addEventListener('keydown', handleKeyDown)
 })
 
 onUnmounted(() => {
-  if (stats && stats.dom && stats.dom.parentNode) {
-    stats.dom.parentNode.removeChild(stats.dom)
-  }
   document.removeEventListener('keydown', handleKeyDown)
 })
 </script>

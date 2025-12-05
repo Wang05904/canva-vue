@@ -14,6 +14,7 @@ import type { GroupElement } from '@/cores/types/element'
 import { useDragState } from './useDragState'
 import { useAlignment } from './useAlignment'
 import type { CanvasService } from '@/services/canvas/CanvasService'
+import { CoordinateTransform } from '@/cores/viewport/CoordinateTransform'
 
 export function useElementDrag(elementId: string) {
   const elementsStore = useElementsStore()
@@ -129,11 +130,9 @@ export function useElementDrag(elementId: string) {
     const screenDx = e.clientX - dragStartPos.value.x
     const screenDy = e.clientY - dragStartPos.value.y
 
-    // Convert to world space offset (considering viewport zoom)
-    const viewport = canvasService?.getViewportService().getViewport()
-    const zoom = viewport?.zoom || 1
-    const worldDx = screenDx / zoom
-    const worldDy = screenDy / zoom
+    // Convert to world space offset
+    const viewport = canvasService!.getViewportService().getViewport()
+    const { dx: worldDx, dy: worldDy } = CoordinateTransform.screenDeltaToWorldDelta(screenDx, screenDy, viewport)
 
     totalOffset.value = { x: worldDx, y: worldDy }
 
