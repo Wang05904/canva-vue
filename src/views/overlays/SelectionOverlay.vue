@@ -750,6 +750,9 @@ const stopRotate = () => {
     cachedBoundingBox.value = calculateBoundingBox()
   }
 
+  // 结束旋转吸附辅助线
+  clearAlignment()
+
   endGlobalRotate()
   rotationAngle.value = 0
   document.removeEventListener('mousemove', onRotate)
