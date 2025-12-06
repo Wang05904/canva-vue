@@ -177,7 +177,7 @@ export class RenderService {
     if (!this.app) return
 
     // 图片元素由 DOM 渲染,这里只处理形状
-    if (element.type === 'image') return
+    if (element.type === 'image' || element.type === 'group') return
 
     let graphic = this.graphicMap.get(element.id)
 
@@ -222,6 +222,7 @@ export class RenderService {
    * 更新Graphics对象
    */
   private updateGraphic(graphic: Graphics, element: AnyElement): void {
+    console.log('updateGraphic :', element.x, element.y)
     this.drawShape(graphic, element)
     graphic.pivot.set(element.width / 2, element.height / 2)
     graphic.x = element.x + element.width / 2
@@ -294,9 +295,8 @@ export class RenderService {
   updateElementPosition(elementId: string, x: number, y: number): void {
     const graphic = this.graphicMap.get(elementId)
     if (graphic) {
-      // Position at top-left + pivot offset for center-based rotation
-      graphic.x = x + graphic.pivot.x
-      graphic.y = y + graphic.pivot.y
+      graphic.x = x
+      graphic.y = y
     }
   }
 

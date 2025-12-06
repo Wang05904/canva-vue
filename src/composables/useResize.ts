@@ -63,6 +63,7 @@ export function useResize(canvasService: CanvasService | null | undefined) {
         // Single element: scale from corner
         newX = baseX
         newY = baseY
+        console.log(newX,newY)
         if (resizeHandle.includes('l')) newX += baseWidth * (1 - scaleX)
         if (resizeHandle.includes('t')) newY += baseHeight * (1 - scaleY)
       }
@@ -88,7 +89,8 @@ export function useResize(canvasService: CanvasService | null | undefined) {
           textEl.style.height = `${newHeight}px`
         }
       } else {
-        canvasService?.getRenderService().updateElementPosition(id, newX, newY)
+        canvasService?.getRenderService().updateElementPosition(id, newX + baseWidth * scaleX / 2, newY + baseHeight * scaleY / 2)
+        console.log(newX, newY)
         const graphic = canvasService?.getRenderService().getGraphic(id)
         if (graphic) {
           graphic.scale.set(scaleX, scaleY)
@@ -191,13 +193,20 @@ export function useResize(canvasService: CanvasService | null | undefined) {
     selectedIds: string[]
   ) => {
     const viewport = canvasStore.viewport
-    
+
     // 检查是否为组合元素（组合元素应该使用中心缩放模式）
     const isGroup = selectedIds.length === 1 && selectedIds.some(id => {
       const el = elementsStore.getElementById(id)
       return el?.type === 'group'
     })
-    
+
+    // Get rotation for single non-group elements
+    let rotation = 0
+    if (selectedIds.length === 1 && selectedIds[0] && !isGroup) {
+      const el = elementsStore.getElementById(selectedIds[0])
+      rotation = el?.rotation || 0
+    }
+
     // Calculate world coordinates position
     let worldX, worldY
     if (selectedIds.length > 1 || isGroup) {
@@ -227,8 +236,10 @@ export function useResize(canvasService: CanvasService | null | undefined) {
     const screenWidth = w * viewport.zoom
     const screenHeight = h * viewport.zoom
 
-    // Selection box is always unrotated
-    box.style.transform = `translate3d(${screenPos.x}px, ${screenPos.y}px, 0)`
+    // Apply rotation for single non-group elements
+    const rotationDeg = (rotation * 180) / Math.PI
+    box.style.transform = `translate3d(${screenPos.x}px, ${screenPos.y}px, 0) rotate(${rotationDeg}deg)`
+    box.style.transformOrigin = `${screenWidth / 2}px ${screenHeight / 2}px`
     box.style.width = screenWidth + 'px'
     box.style.height = screenHeight + 'px'
   }
