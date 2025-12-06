@@ -1,25 +1,33 @@
 <!--
 View层 - 对齐辅助线组件
-职责：在拖拽元素时显示对齐参考线
+职责：在拖拽元素时显示对齐参考线（支持点对点线段）
 -->
 <template>
-  <div class="guidelines-overlay">
-    <!-- 垂直辅助线 (X轴对齐) -->
-    <div
-      v-for="(x, index) in verticalLines"
+  <svg class="guidelines-overlay">
+    <!-- 垂直辅助线（线段式） -->
+    <line
+      v-for="(line, index) in verticalLines"
       :key="`v-${index}`"
-      class="vertical-guideline"
-      :style="{ left: `${x}px` }"
+      :x1="line.start.x"
+      :y1="line.start.y"
+      :x2="line.end.x"
+      :y2="line.end.y"
+      class="guideline"
+      :class="`guideline-${line.type}`"
     />
     
-    <!-- 水平辅助线 (Y轴对齐) -->
-    <div
-      v-for="(y, index) in horizontalLines"
+    <!-- 水平辅助线（线段式） -->
+    <line
+      v-for="(line, index) in horizontalLines"
       :key="`h-${index}`"
-      class="horizontal-guideline"
-      :style="{ top: `${y}px` }"
+      :x1="line.start.x"
+      :y1="line.start.y"
+      :x2="line.end.x"
+      :y2="line.end.y"
+      class="guideline"
+      :class="`guideline-${line.type}`"
     />
-  </div>
+  </svg>
 </template>
 
 <script setup lang="ts">
@@ -42,21 +50,24 @@ const { verticalLines, horizontalLines } = storeToRefs(guidelinesStore)
   overflow: visible; /* 允许辅助线溢出容器 */
 }
 
-.horizontal-guideline {
-  position: absolute;
-  left: -100000px; /* 向左延伸 */
-  width: 200000px; /* 足够长 */
-  height: 1px;
-  background: #ff4081;
-  box-shadow: 0 0 2px rgba(255, 64, 129, 0.5);
+.guideline {
+  stroke-width: 1;
+  stroke: #ff4081;
+  filter: drop-shadow(0 0 2px rgba(255, 64, 129, 0.5));
 }
 
-.vertical-guideline {
-  position: absolute;
-  top: -100000px; /* 向上延伸 */
-  width: 1px;
-  height: 200000px; /* 足够长 */
-  background: #ff4081;
-  box-shadow: 0 0 2px rgba(255, 64, 129, 0.5);
+.guideline-center {
+  stroke: #00bcd4;
+  stroke-width: 1.5;
+}
+
+.guideline-vertex {
+  stroke: #ffeb3b;
+  stroke-width: 1;
+}
+
+.guideline-edge {
+  stroke: #ff4081;
+  stroke-width: 1;
 }
 </style>

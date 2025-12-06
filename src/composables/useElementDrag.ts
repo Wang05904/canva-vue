@@ -13,6 +13,7 @@ import { useSelectionStore } from '@/stores/selection'
 import type { GroupElement } from '@/cores/types/element'
 import { useDragState } from './useDragState'
 import { useAlignment } from './useAlignment'
+import { createBBoxGeometry } from './useAlignmentHelpers'
 import type { CanvasService } from '@/services/canvas/CanvasService'
 import { CoordinateTransform } from '@/cores/viewport/CoordinateTransform'
 import { performanceMonitor, MetricType } from '@/cores/monitoring'
@@ -30,7 +31,7 @@ export function useElementDrag(elementId: string) {
   let animationFrameId: number | null = null
   let currentElement: HTMLElement | null = null
   let initialTransform = { x: 0, y: 0, rotation: 0 }
-  let initialBoundingBox: { x: number; y: number; width: number; height: number } | null = null
+  let initialBoundingBox: { x: number; y: number; width: number; height: number; rotation: number } | null = null
   let draggedIds: string[] = []
 
   /**
@@ -89,18 +90,34 @@ export function useElementDrag(elementId: string) {
     const draggedElements = draggedIds.map(id => elementsStore.getElementById(id)).filter(el => el != null)
     initialBoundingBox = null
     if (draggedElements.length > 0) {
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
-      draggedElements.forEach(el => {
-        minX = Math.min(minX, el.x)
-        minY = Math.min(minY, el.y)
-        maxX = Math.max(maxX, el.x + el.width)
-        maxY = Math.max(maxY, el.y + el.height)
-      })
-      initialBoundingBox = {
-        x: minX,
-        y: minY,
-        width: maxX - minX,
-        height: maxY - minY
+      // 单个元素：保留旋转信息
+      if (draggedElements.length === 1) {
+        const el = draggedElements[0]
+        if (el) {
+          initialBoundingBox = {
+            x: el.x,
+            y: el.y,
+            width: el.width,
+            height: el.height,
+            rotation: el.rotation || 0
+          }
+        }
+      } else {
+        // 多个元素：计算整体AABB，旋转为0
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+        draggedElements.forEach(el => {
+          minX = Math.min(minX, el.x)
+          minY = Math.min(minY, el.y)
+          maxX = Math.max(maxX, el.x + el.width)
+          maxY = Math.max(maxY, el.y + el.height)
+        })
+        initialBoundingBox = {
+          x: minX,
+          y: minY,
+          width: maxX - minX,
+          height: maxY - minY,
+          rotation: 0
+        }
       }
     }
 
@@ -148,14 +165,14 @@ export function useElementDrag(elementId: string) {
 
     // 2. 计算吸附修正
     if (initialBoundingBox) {
-      const targetRect = {
+      const targetGeometry = createBBoxGeometry({
         x: initialBoundingBox.x + worldDx,
         y: initialBoundingBox.y + worldDy,
         width: initialBoundingBox.width,
         height: initialBoundingBox.height
-      }
+      }, initialBoundingBox.rotation)
 
-      const { dx: snapDx, dy: snapDy } = checkAlignment(targetRect, draggedIds)
+      const { dx: snapDx, dy: snapDy } = checkAlignment(targetGeometry, draggedIds)
 
       if (snapDx !== 0 || snapDy !== 0) {
         // console.log('[对齐调试-DOM] 检测到吸附:', { snapDx, snapDy })

@@ -11,6 +11,7 @@ import { Application, Graphics, FederatedPointerEvent, Container } from 'pixi.js
 import type { AnyElement, GroupElement } from '@/cores/types/element'
 import { useDragState } from '@/composables/useDragState'
 import { useAlignment } from '@/composables/useAlignment'
+import { createBBoxGeometry } from '@/composables/useAlignmentHelpers'
 import type { ViewportService } from '@/services'
 
 /**
@@ -56,7 +57,7 @@ export class EventService {
   private alignment = useAlignment()
   private viewportService: ViewportService | null = null
   private worldContainer: Container | null = null
-  private initialBoundingBox: { x: number; y: number; width: number; height: number } | null = null
+  private initialBoundingBox: { x: number; y: number; width: number; height: number; rotation: number } | null = null
   private draggedIds: string[] = []
   private initialElementPositions: Map<string, { x: number; y: number }> = new Map()
   private dragAnimationFrameId: number | null = null
@@ -185,18 +186,34 @@ export class EventService {
 
       let initialBoundingBox = null
       if (draggedElements.length > 0) {
-        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
-        draggedElements.forEach(el => {
-          minX = Math.min(minX, el.x)
-          minY = Math.min(minY, el.y)
-          maxX = Math.max(maxX, el.x + el.width)
-          maxY = Math.max(maxY, el.y + el.height)
-        })
-        initialBoundingBox = {
-          x: minX,
-          y: minY,
-          width: maxX - minX,
-          height: maxY - minY
+        // 单个元素：保留旋转信息
+        if (draggedElements.length === 1) {
+          const el = draggedElements[0]
+          if (el) {
+            initialBoundingBox = {
+              x: el.x,
+              y: el.y,
+              width: el.width,
+              height: el.height,
+              rotation: el.rotation || 0
+            }
+          }
+        } else {
+          // 多个元素：计算整体AABB，旋转为0
+          let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+          draggedElements.forEach(el => {
+            minX = Math.min(minX, el.x)
+            minY = Math.min(minY, el.y)
+            maxX = Math.max(maxX, el.x + el.width)
+            maxY = Math.max(maxY, el.y + el.height)
+          })
+          initialBoundingBox = {
+            x: minX,
+            y: minY,
+            width: maxX - minX,
+            height: maxY - minY,
+            rotation: 0
+          }
         }
       }
 
@@ -242,8 +259,14 @@ export class EventService {
       //   draggedElementsIds: draggedElements.map(el => el.id)
       // })
 
-      // 启动全局拖拽状态
-      this.dragState.startDrag(draggedIds, initialBoundingBox)
+      // 启动全局拖拽状态（为了兼容性，只传递x,y,width,height）
+      const boundingBoxForState = initialBoundingBox ? {
+        x: initialBoundingBox.x,
+        y: initialBoundingBox.y,
+        width: initialBoundingBox.width,
+        height: initialBoundingBox.height
+      } : null
+      this.dragState.startDrag(draggedIds, boundingBoxForState)
     } else {
       // 点击到画布：开始框选
       this.isBoxSelecting = true
@@ -270,14 +293,14 @@ export class EventService {
 
       // 应用对齐吸附
       if (this.initialBoundingBox) {
-        const targetRect = {
+        const targetGeometry = createBBoxGeometry({
           x: this.initialBoundingBox.x + dx,
           y: this.initialBoundingBox.y + dy,
           width: this.initialBoundingBox.width,
           height: this.initialBoundingBox.height
-        }
+        }, this.initialBoundingBox.rotation)
 
-        const { dx: snapDx, dy: snapDy } = this.alignment.checkAlignment(targetRect, this.draggedIds)
+        const { dx: snapDx, dy: snapDy } = this.alignment.checkAlignment(targetGeometry, this.draggedIds)
 
         if (snapDx !== 0 || snapDy !== 0) {
           // console.log('[对齐调试] 检测到吸附:', { snapDx, snapDy, targetRect, draggedIds: this.draggedIds })

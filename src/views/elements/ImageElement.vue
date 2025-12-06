@@ -20,6 +20,7 @@ import type { ImageElement, GroupElement } from '@/cores/types/element'
 import { useElementDrag } from '@/composables/useElementDrag'
 import { useDragState } from '@/composables/useDragState'
 import { useAlignment } from '@/composables/useAlignment'
+import { createBBoxGeometry } from '@/composables/useAlignmentHelpers'
 import { useElementsStore } from '@/stores/elements'
 import { useSelectionStore } from '@/stores/selection'
 import type { CanvasService } from '@/services/canvas/CanvasService'
@@ -41,7 +42,7 @@ const isDragging = ref(false)
 const hasMoved = ref(false)
 const dragStartPos = ref({ x: 0, y: 0 })
 let animationFrameId: number | null = null
-let initialBoundingBox: { x: number; y: number; width: number; height: number } | null = null
+let initialBoundingBox: { x: number; y: number; width: number; height: number; rotation: number } | null = null
 let draggedIds: string[] = []
 
 // 处理组合拖拽移动
@@ -66,14 +67,14 @@ const handleGroupDragMove = (e: MouseEvent) => {
   let finalDy = worldDy
   
   if (initialBoundingBox) {
-    const targetRect = {
+    const targetGeometry = createBBoxGeometry({
       x: initialBoundingBox.x + worldDx,
       y: initialBoundingBox.y + worldDy,
       width: initialBoundingBox.width,
       height: initialBoundingBox.height
-    }
+    }, initialBoundingBox.rotation)
     
-    const { dx: snapDx, dy: snapDy } = checkAlignment(targetRect, draggedIds)
+    const { dx: snapDx, dy: snapDy } = checkAlignment(targetGeometry, draggedIds)
     finalDx += snapDx
     finalDy += snapDy
   }
@@ -152,14 +153,14 @@ const handleGroupDragUp = (e: MouseEvent) => {
     let finalDy = worldDy
     
     if (initialBoundingBox) {
-      const targetRect = {
+      const targetGeometry = createBBoxGeometry({
         x: initialBoundingBox.x + worldDx,
         y: initialBoundingBox.y + worldDy,
         width: initialBoundingBox.width,
         height: initialBoundingBox.height
-      }
+      }, initialBoundingBox.rotation)
       
-      const { dx: snapDx, dy: snapDy } = checkAlignment(targetRect, draggedIds)
+      const { dx: snapDx, dy: snapDy } = checkAlignment(targetGeometry, draggedIds)
       finalDx += snapDx
       finalDy += snapDy
     }
@@ -212,7 +213,8 @@ const onMouseDown = (e: MouseEvent) => {
           x: minX,
           y: minY,
           width: maxX - minX,
-          height: maxY - minY
+          height: maxY - minY,
+          rotation: 0  // 组合元素rotation为0
         }
       }
       
