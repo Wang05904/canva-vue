@@ -43,6 +43,9 @@ export class AlignmentCalculator {
     // 缩放越大，逻辑阈值越小（保持视觉一致）
     const threshold = this.THRESHOLD_BASE / Math.max(scale, 0.1)
 
+    // 过滤：组内子元素不参与对齐，组合只看整体包围盒
+    const filteredRefs = referenceElements.filter(el => !el.parentGroup)
+
     // 计算目标元素的旋转包围盒和吸附点
     const targetRBBox = computeGeometry(targetGeometry)
     const targetSnapPoints = extractSnapPoints(targetGeometry, targetRBBox)
@@ -50,7 +53,7 @@ export class AlignmentCalculator {
     // 性能优化：过滤掉距离太远的参考元素
     const targetAABB = getAABB([...targetRBBox.corners, targetRBBox.center])
     const nearbyElements = this.filterNearbyElements(
-      referenceElements,
+      filteredRefs,
       targetAABB,
       threshold * 20 + Math.max(targetAABB.width, targetAABB.height) * 0.75 // 视口缩放 + 尺寸自适应
     )
