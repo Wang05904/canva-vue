@@ -11,13 +11,18 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AAlert: typeof import('@arco-design/web-vue')['Alert']
+    ABadge: typeof import('@arco-design/web-vue')['Badge']
     AButton: typeof import('@arco-design/web-vue')['Button']
-    AColorPicker: typeof import('@arco-design/web-vue')['ColorPicker']
-    ADivider: typeof import('@arco-design/web-vue')['Divider']
-    AModal: typeof import('@arco-design/web-vue')['Modal']
+    ACard: typeof import('@arco-design/web-vue')['Card']
     APopover: typeof import('@arco-design/web-vue')['Popover']
-    ASlider: typeof import('@arco-design/web-vue')['Slider']
-    ATrigger: typeof import('@arco-design/web-vue')['Trigger']
+    AProgress: typeof import('@arco-design/web-vue')['Progress']
+    ASpace: typeof import('@arco-design/web-vue')['Space']
+    ASwitch: typeof import('@arco-design/web-vue')['Switch']
+    ATable: typeof import('@arco-design/web-vue')['Table']
+    ATabPane: typeof import('@arco-design/web-vue')['TabPane']
+    ATabs: typeof import('@arco-design/web-vue')['Tabs']
+    ATag: typeof import('@arco-design/web-vue')['Tag']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
   }

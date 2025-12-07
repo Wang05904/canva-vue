@@ -1,31 +1,35 @@
-import type { CanvasElement } from '@/cores/types/element'
+/**
+ * 对齐计算器（支持旋转包围盒）
+ * 功能：计算元素吸附对齐，支持旋转、不同形状、组合等
+ */
 
-export interface AlignmentResult {
-  dx: number // X轴吸附修正值
-  dy: number // Y轴吸附修正值
-  verticalLines: number[] // 需要绘制的垂直辅助线X坐标
-  horizontalLines: number[] // 需要绘制的水平辅助线Y坐标
-}
+import type { AnyElement } from '@/cores/types/element'
+import type { AlignmentResult, Guideline, SnapPoint, ElementGeometry, Point } from '@/cores/types/geometry'
+import { elementToGeometry, computeGeometry } from '../geometry/GeometryCalculator'
+import { extractSnapPoints } from '../geometry/SnapPointExtractor'
+import { getAABB } from '@/cores/utils/rotation'
 
-interface Rect {
-  x: number
-  y: number
-  width: number
-  height: number
+interface SnapCandidate {
+  dx: number
+  dy: number
+  targetPoint: SnapPoint
+  refPoint: SnapPoint
+  axis: 'x' | 'y'
 }
 
 export class AlignmentCalculator {
-  static readonly THRESHOLD = 5 // 吸附阈值 (像素)
+  // 基础吸附阈值（像素），会按缩放放大。略大一些以便多元素同时对齐时不必“贴脸”。
+  static readonly THRESHOLD_BASE = 8
 
   /**
-   * 计算对齐吸附
-   * @param target 当前拖拽的元素（或选区）的位置信息
-   * @param others 其他所有元素
-   * @param scale 当前画布缩放比例（用于调整阈值体验，可选）
+   * 计算对齐吸附（支持旋转包围盒）
+   * @param targetGeometry 当前拖拽元素的几何信息
+   * @param referenceElements 参考元素列表
+   * @param scale 当前画布缩放比例
    */
   static calculate(
-    target: Rect,
-    others: CanvasElement[],
+    targetGeometry: ElementGeometry,
+    referenceElements: AnyElement[],
     scale: number = 1
   ): AlignmentResult {
     const result: AlignmentResult = {
@@ -35,109 +39,191 @@ export class AlignmentCalculator {
       horizontalLines: []
     }
 
-    // 调整阈值，缩放越小，吸附范围在视觉上应该保持一致，但在逻辑坐标上需要放大
-    const threshold = this.THRESHOLD / scale
+    // 调整阈值
+    // 缩放越大，逻辑阈值越小（保持视觉一致）
+    const threshold = this.THRESHOLD_BASE / Math.max(scale, 0.1)
 
-    // 目标元素的关键点
-    const targetX = [
-      target.x, // 左
-      target.x + target.width / 2, // 中
-      target.x + target.width // 右
-    ]
-    
-    const targetY = [
-      target.y, // 上
-      target.y + target.height / 2, // 中
-      target.y + target.height // 下
-    ]
+    // 过滤：组内子元素不参与对齐，组合只看整体包围盒
+    const filteredRefs = referenceElements.filter(el => !el.parentGroup)
 
-    // 寻找最近的吸附点
-    let minDiffX = Infinity
-    let minDiffY = Infinity
-    
-    // 遍历其他元素寻找对齐点
-    for (const other of others) {
-      // 忽略不可见元素
-      if (!other.visible) continue
+    // 计算目标元素的旋转包围盒和吸附点
+    const targetRBBox = computeGeometry(targetGeometry)
+    const targetSnapPoints = extractSnapPoints(targetGeometry, targetRBBox)
 
-      // 其他元素的关键点
-      const otherX = [
-        other.x,
-        other.x + other.width / 2,
-        other.x + other.width
-      ]
+    // 性能优化：过滤掉距离太远的参考元素
+    const targetAABB = getAABB([...targetRBBox.corners, targetRBBox.center])
+    const nearbyElements = this.filterNearbyElements(
+      filteredRefs,
+      targetAABB,
+      threshold * 20 + Math.max(targetAABB.width, targetAABB.height) * 0.75 // 视口缩放 + 尺寸自适应
+    )
 
-      const otherY = [
-        other.y,
-        other.y + other.height / 2,
-        other.y + other.height
-      ]
+    // 收集所有参考元素的吸附点
+    const refSnapPointsMap = new Map<string, SnapPoint[]>()
+    for (const refElement of nearbyElements) {
+      if (!refElement.visible) continue
 
-      // 检查垂直辅助线 (X轴对齐)
-      for (const tx of targetX) {
-        for (const ox of otherX) {
-          const diff = ox - tx
-          if (Math.abs(diff) < threshold && Math.abs(diff) < Math.abs(minDiffX)) {
-            minDiffX = diff
+      const refGeometry = elementToGeometry(refElement)
+      const refRBBox = computeGeometry(refGeometry)
+      const refSnapPoints = extractSnapPoints(refGeometry, refRBBox)
+      refSnapPointsMap.set(refElement.id, refSnapPoints)
+    }
+
+    // 查找所有吸附候选
+    const candidates: SnapCandidate[] = []
+
+    for (const targetPoint of targetSnapPoints) {
+      for (const [, refPoints] of refSnapPointsMap) {
+        for (const refPoint of refPoints) {
+          // X轴对齐检查
+          const diffX = refPoint.x - targetPoint.x
+          if (Math.abs(diffX) <= threshold) {
+            candidates.push({
+              dx: diffX,
+              dy: 0,
+              targetPoint,
+              refPoint,
+              axis: 'x'
+            })
           }
-        }
-      }
 
-      // 检查水平辅助线 (Y轴对齐)
-      for (const ty of targetY) {
-        for (const oy of otherY) {
-          const diff = oy - ty
-          if (Math.abs(diff) < threshold && Math.abs(diff) < Math.abs(minDiffY)) {
-            minDiffY = diff
+          // Y轴对齐检查
+          const diffY = refPoint.y - targetPoint.y
+          if (Math.abs(diffY) <= threshold) {
+            candidates.push({
+              dx: 0,
+              dy: diffY,
+              targetPoint,
+              refPoint,
+              axis: 'y'
+            })
           }
         }
       }
     }
 
-    // 如果找到了有效的吸附点，生成结果
-    if (minDiffX !== Infinity) {
-      result.dx = minDiffX
-      // 重新计算吸附后的X坐标，用于确定辅助线位置
-      const snappedX = targetX.map(x => x + minDiffX)
-      
-      // 再次遍历找出所有重合的线（可能有多个元素对齐到同一条线）
-      for (const other of others) {
-        if (!other.visible) continue
-        const otherX = [other.x, other.x + other.width / 2, other.x + other.width]
-        
-        // 检查是否与吸附后的位置重合
-        for (const sx of snappedX) {
-          for (const ox of otherX) {
-            if (Math.abs(sx - ox) < 0.01) { // 浮点数比较
-              if (!result.verticalLines.includes(ox)) {
-                result.verticalLines.push(ox)
-              }
-            }
-          }
-        }
+    // 选择最小的dx和dy
+    let minDx = Infinity
+    let minDy = Infinity
+    const selectedXCandidates: SnapCandidate[] = []
+    const selectedYCandidates: SnapCandidate[] = []
+
+    for (const candidate of candidates) {
+      if (candidate.axis === 'x' && Math.abs(candidate.dx) < Math.abs(minDx)) {
+        minDx = candidate.dx
+        selectedXCandidates.length = 0
+        selectedXCandidates.push(candidate)
+      } else if (candidate.axis === 'x' && Math.abs(candidate.dx) === Math.abs(minDx)) {
+        selectedXCandidates.push(candidate)
+      }
+
+      if (candidate.axis === 'y' && Math.abs(candidate.dy) < Math.abs(minDy)) {
+        minDy = candidate.dy
+        selectedYCandidates.length = 0
+        selectedYCandidates.push(candidate)
+      } else if (candidate.axis === 'y' && Math.abs(candidate.dy) === Math.abs(minDy)) {
+        selectedYCandidates.push(candidate)
       }
     }
 
-    if (minDiffY !== Infinity) {
-      result.dy = minDiffY
-      const snappedY = targetY.map(y => y + minDiffY)
-      
-      for (const other of others) {
-        if (!other.visible) continue
-        const otherY = [other.y, other.y + other.height / 2, other.y + other.height]
-        
-        for (const sy of snappedY) {
-          for (const oy of otherY) {
-            if (Math.abs(sy - oy) < 0.01) {
-              if (!result.horizontalLines.includes(oy)) {
-                result.horizontalLines.push(oy)
-              }
-            }
-          }
-        }
-      }
+    // 设置偏移值
+    if (minDx !== Infinity) {
+      result.dx = minDx
     }
+    if (minDy !== Infinity) {
+      result.dy = minDy
+    }
+
+    // 生成辅助线（连接对齐点）
+    result.verticalLines = this.generateGuidelines(selectedXCandidates, 'vertical', result.dx)
+    result.horizontalLines = this.generateGuidelines(selectedYCandidates, 'horizontal', result.dy)
 
     return result
+  }
+
+  /**
+   * 生成辅助线
+   */
+  private static generateGuidelines(
+    candidates: SnapCandidate[],
+    orientation: 'vertical' | 'horizontal',
+    offset: number
+  ): Guideline[] {
+    const guidelines: Guideline[] = []
+    const processedPairs = new Set<string>()
+
+    for (const candidate of candidates) {
+      const { targetPoint, refPoint } = candidate
+
+      // 调整目标点位置（吸附后）
+      const adjustedTarget: Point = {
+        x: targetPoint.x + (orientation === 'vertical' ? offset : 0),
+        y: targetPoint.y + (orientation === 'horizontal' ? offset : 0)
+      }
+
+      // 生成唯一键避免重复
+      const key = orientation === 'vertical'
+        ? `v-${adjustedTarget.x.toFixed(2)}-${Math.min(adjustedTarget.y, refPoint.y).toFixed(2)}`
+        : `h-${adjustedTarget.y.toFixed(2)}-${Math.min(adjustedTarget.x, refPoint.x).toFixed(2)}`
+
+      if (processedPairs.has(key)) continue
+      processedPairs.add(key)
+
+      // 创建连接线
+      const guideline: Guideline = {
+        start: adjustedTarget,
+        end: refPoint,
+        type: this.getGuidelineType(targetPoint.type, refPoint.type),
+        axis: orientation
+      }
+
+      guidelines.push(guideline)
+    }
+
+    return guidelines
+  }
+
+  /**
+   * 确定辅助线类型
+   */
+  private static getGuidelineType(
+    targetType: string,
+    refType: string
+  ): 'center' | 'edge' | 'vertex' {
+    if (targetType === 'center' || refType === 'center') return 'center'
+    if (targetType === 'triangle-vertex' || refType === 'triangle-vertex') return 'vertex'
+    return 'edge'
+  }
+
+  /**
+   * 性能优化：过滤距离太远的元素
+   */
+  private static filterNearbyElements(
+    elements: AnyElement[],
+    targetAABB: { x: number; y: number; width: number; height: number },
+    maxDistance: number
+  ): AnyElement[] {
+    return elements.filter(el => {
+      const elAABB = {
+        x: el.x,
+        y: el.y,
+        width: el.width,
+        height: el.height
+      }
+
+      // 简单的AABB距离检查
+      const dx = Math.max(
+        targetAABB.x - (elAABB.x + elAABB.width),
+        elAABB.x - (targetAABB.x + targetAABB.width),
+        0
+      )
+      const dy = Math.max(
+        targetAABB.y - (elAABB.y + elAABB.height),
+        elAABB.y - (targetAABB.y + targetAABB.height),
+        0
+      )
+
+      return dx <= maxDistance && dy <= maxDistance
+    })
   }
 }

@@ -5,29 +5,50 @@
  */
 
 /**
+ * 通用颜色配置
+ */
+const COLORS = {
+    primary: '#4A90E2',
+    danger: '#E94B3C',
+    success: '#34C759',
+    warning: '#FF9500',
+    black: '#000000',
+    white: '#FFFFFF',
+} as const
+
+/**
+ * 通用样式配置
+ */
+const COMMON_STYLES = {
+    strokeColor: COLORS.black,
+    strokeWidth: 1,
+    borderRadius: 10,
+} as const
+
+/**
  * 图形元素默认配置
  */
 export const SHAPE_DEFAULTS = {
     rectangle: {
-        fillColor: '#4A90E2',
-        strokeColor: '#000000',
-        strokeWidth: 1,
+        fillColor: COLORS.primary,
+        strokeColor: COMMON_STYLES.strokeColor,
+        strokeWidth: COMMON_STYLES.strokeWidth,
     },
     circle: {
-        fillColor: '#E94B3C',
-        strokeColor: '#000000',
-        strokeWidth: 1,
+        fillColor: COLORS.danger,
+        strokeColor: COMMON_STYLES.strokeColor,
+        strokeWidth: COMMON_STYLES.strokeWidth,
     },
     triangle: {
-        fillColor: '#34C759',
-        strokeColor: '#000000',
-        strokeWidth: 1,
+        fillColor: COLORS.success,
+        strokeColor: COMMON_STYLES.strokeColor,
+        strokeWidth: COMMON_STYLES.strokeWidth,
     },
     roundedRect: {
-        fillColor: '#FF9500',
-        strokeColor: '#000000',
-        strokeWidth: 1,
-        borderRadius: 10,
+        fillColor: COLORS.warning,
+        strokeColor: COMMON_STYLES.strokeColor,
+        strokeWidth: COMMON_STYLES.strokeWidth,
+        borderRadius: COMMON_STYLES.borderRadius,
     },
 } as const
 
@@ -37,18 +58,11 @@ export const SHAPE_DEFAULTS = {
 export const TEXT_DEFAULTS = {
     fontSize: 16,
     fontFamily: 'Arial',
-    color: '#000000',
+    color: COLORS.black,
     content: '双击编辑文本',
     fontWeight: 'normal' as const,
     fontStyle: 'normal' as const,
     textDecoration: 'none' as const,
-} as const
-
-/**
- * 图片元素默认配置
- */
-export const IMAGE_DEFAULTS = {
-    filters: [],
 } as const
 
 /**
@@ -62,14 +76,3 @@ export const COMMON_DEFAULTS = {
     zIndex: 0,
 } as const
 
-/**
- * 元素创建时的默认尺寸
- */
-export const DEFAULT_SIZES = {
-    rectangle: { width: 100, height: 100 },
-    circle: { width: 100, height: 100 },
-    triangle: { width: 100, height: 100 },
-    roundedRect: { width: 100, height: 100 },
-    text: { width: 200, height: 40 },
-    image: { width: 200, height: 200 },
-} as const

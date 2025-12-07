@@ -10,7 +10,7 @@ import { Application, FederatedPointerEvent } from 'pixi.js'
 import { RenderService } from './RenderService'
 import { ToolService, type ToolType } from './ToolService'
 import { EventService, type EventHandlers } from './EventService'
-import { ViewportService } from './ViewportService'
+import { ViewportService } from '@/services'
 import { useCanvasStore } from '@/stores/canvas'
 import type { AnyElement } from '@/cores/types/element'
 import type { ViewportConfig } from '@/cores/types/canvas'
@@ -82,7 +82,7 @@ export class CanvasService {
   private bindToolPreview(app: Application): void {
     app.stage.on('pointermove', (event: FederatedPointerEvent) => {
       // 将屏幕坐标转换为世界坐标
-      const worldPos = this.eventService.screenToWorld(event.global.x, event.global.y)
+      const worldPos = this.viewportService.screenToWorld(event.global.x, event.global.y)
       this.toolService.updatePreview(event, worldPos.x, worldPos.y)
     })
   }
@@ -109,37 +109,14 @@ export class CanvasService {
       this.syncViewportToStore()
     }, { passive: false })
 
-    // 中键按下或空格+拖拽平移画布
+    // 中键拖拽平移画布
     let isPanning = false
     let lastPanPos = { x: 0, y: 0 }
-    let spacePressed = false
-
-    // 监听空格键
-    window.addEventListener('keydown', (e: KeyboardEvent) => {
-      if (e.code === 'Space' && !e.repeat) {
-        spacePressed = true
-        const currentTool = this.toolService.getTool()
-        if (currentTool !== 'pan') {
-          canvas.style.cursor = 'grab'
-        }
-      }
-    })
-
-    window.addEventListener('keyup', (e: KeyboardEvent) => {
-      if (e.code === 'Space') {
-        spacePressed = false
-        const currentTool = this.toolService.getTool()
-        canvas.style.cursor = currentTool === 'pan' ? 'grab' : 'default'
-        if (isPanning) {
-          isPanning = false
-        }
-      }
-    })
 
     canvas.addEventListener('pointerdown', (event: PointerEvent) => {
       const currentTool = this.toolService.getTool()
-      // 中键、空格+左键、或pan工具+左键开始平移
-      if (event.button === 1 || (event.button === 0 && (spacePressed || currentTool === 'pan'))) {
+      // 中键或pan工具+左键开始平移
+      if (event.button === 1 || (event.button === 0 && currentTool === 'pan')) {
         event.preventDefault()
         event.stopPropagation()
         isPanning = true
@@ -167,9 +144,26 @@ export class CanvasService {
       if (event.button === 1 || (event.button === 0 && isPanning)) {
         isPanning = false
         const currentTool = this.toolService.getTool()
-        canvas.style.cursor = (spacePressed || currentTool === 'pan') ? 'grab' : 'default'
+        canvas.style.cursor = currentTool === 'pan' ? 'grab' : 'default'
       }
     })
+  }
+
+  /**
+   * 设置画布光标样式
+   */
+  setCanvasCursor(cursor: string): void {
+    const canvas = this.renderService.getApp()?.canvas
+    if (canvas) {
+      canvas.style.cursor = cursor
+    }
+  }
+
+  /**
+   * 获取当前工具
+   */
+  getCurrentTool(): string {
+    return this.toolService.getTool()
   }
 
   /**
@@ -187,20 +181,6 @@ export class CanvasService {
   }
 
   /**
-   * 获取当前工具
-   */
-  getTool(): ToolType {
-    return this.toolService.getTool()
-  }
-
-  /**
-   * 获取工具配置
-   */
-  getToolConfig(tool?: ToolType) {
-    return this.toolService.getToolConfig(tool)
-  }
-
-  /**
    * 计算元素创建位置
    */
   calculateCreatePosition(mouseX: number, mouseY: number, tool?: ToolType) {
@@ -212,13 +192,6 @@ export class CanvasService {
    */
   getRenderService(): RenderService {
     return this.renderService
-  }
-
-  /**
-   * 直接更新元素位置（拖拽优化）
-   */
-  updateElementPosition(elementId: string, x: number, y: number): void {
-    this.renderService.updateElementPosition(elementId, x, y)
   }
 
   /**
@@ -236,20 +209,6 @@ export class CanvasService {
   }
 
   /**
-   * 获取工具服务
-   */
-  getToolService(): ToolService {
-    return this.toolService
-  }
-
-  /**
-   * 获取事件服务
-   */
-  getEventService(): EventService {
-    return this.eventService
-  }
-
-  /**
    * 获取视口服务
    */
   getViewportService(): ViewportService {
@@ -262,7 +221,6 @@ export class CanvasService {
   destroy(): void {
     this.eventService.destroy()
     this.toolService.destroy()
-    this.viewportService.destroy()
     this.renderService.destroy()
     this.initialized = false
   }

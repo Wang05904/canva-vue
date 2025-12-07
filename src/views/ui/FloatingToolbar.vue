@@ -7,8 +7,8 @@
     @mousedown.stop
   >
     <!-- 背景色 -->
-    <div 
-      class="tool-btn-wrapper" 
+    <div
+      class="tool-btn-wrapper"
       :class="{ active: showFillPicker }"
       @mouseenter="handleMouseEnter('fill')"
       @mouseleave="handleMouseLeave('fill')"
@@ -18,11 +18,11 @@
         <svg v-if="showFillPicker" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg>
         <svg v-else width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
       </div>
-      
+
       <!-- 背景色选择面板 -->
-      <div 
-        v-if="showFillPicker" 
-        class="popover-panel" 
+      <div
+        v-if="showFillPicker"
+        class="popover-panel"
         @click.stop
         @mouseenter="handleMouseEnter('fill')"
         @mouseleave="handleMouseLeave('fill')"
@@ -39,10 +39,10 @@
             @mouseleave="handleFillPreviewEnd"
             @click="updateFill(item.color)"
           ></div>
-          
+
           <!-- 自定义颜色按钮 -->
-          <div 
-            class="color-item custom-add-btn has-tooltip" 
+          <div
+            class="color-item custom-add-btn has-tooltip"
             data-tooltip="自定义颜色"
           >
             <div class="color-input-wrapper">
@@ -64,8 +64,8 @@
     </div>
 
     <!-- 边框设置 -->
-    <div 
-      class="tool-btn-wrapper" 
+    <div
+      class="tool-btn-wrapper"
       :class="{ active: showBorderSettings }"
       @mouseenter="handleMouseEnter('border')"
       @mouseleave="handleMouseLeave('border')"
@@ -82,7 +82,7 @@
         <div
           v-else
           class="color-preview circle border-mode"
-          :style="{ 
+          :style="{
             borderColor: previewStrokeColor || (selectedElement.type === 'shape' ? selectedElement.strokeColor : '#000000'),
             borderWidth: '2px'
           }"
@@ -92,9 +92,9 @@
       </div>
 
       <!-- 边框设置面板 -->
-      <div 
-        v-if="showBorderSettings" 
-        class="popover-panel" 
+      <div
+        v-if="showBorderSettings"
+        class="popover-panel"
         @click.stop
         @mouseenter="handleMouseEnter('border')"
         @mouseleave="handleMouseLeave('border')"
@@ -129,7 +129,7 @@
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
             </svg>
           </div>
-          
+
           <div
             v-for="item in presetColors"
             :key="item.color"
@@ -143,8 +143,8 @@
           ></div>
 
           <!-- 自定义颜色按钮 -->
-          <div 
-            class="color-item custom-add-btn has-tooltip" 
+          <div
+            class="color-item custom-add-btn has-tooltip"
             data-tooltip="自定义颜色"
           >
             <div class="color-input-wrapper">
@@ -296,14 +296,14 @@ const handleMouseLeave = (type: 'fill' | 'border') => {
   if (type === 'fill') {
     // 如果颜色选择器打开，不关闭弹窗
     if (preventFillClose.value) return
-    
+
     fillPickerTimer = window.setTimeout(() => {
       showFillPicker.value = false
     }, CLOSE_DELAY)
   } else {
     // 如果颜色选择器打开，不关闭弹窗
     if (preventBorderClose.value) return
-    
+
     borderSettingsTimer = window.setTimeout(() => {
       showBorderSettings.value = false
     }, CLOSE_DELAY)
@@ -439,25 +439,25 @@ const handleUngroup = () => {
 // 预览背景色（hover时实时更新图形 - 使用RAF节流）
 const handleFillPreview = (color: string) => {
   previewFillColor.value = color
-  
+
   if (!selectedElement.value || selectedElement.value.type !== 'shape') return
   if (!canvasService) return
-  
+
   // 取消之前的RAF
   if (fillPreviewRafId !== null) {
     cancelAnimationFrame(fillPreviewRafId)
   }
-  
+
   // 使用RAF节流，避免频繁渲染
   fillPreviewRafId = requestAnimationFrame(() => {
     if (!selectedElement.value || selectedElement.value.type !== 'shape') return
     if (!canvasService) return
-    
+
     canvasService.updateGraphicStyle(selectedElement.value.id, {
       ...selectedElement.value,
       fillColor: color
     })
-    
+
     fillPreviewRafId = null
   })
 }
@@ -469,12 +469,12 @@ const handleFillPreviewEnd = () => {
     cancelAnimationFrame(fillPreviewRafId)
     fillPreviewRafId = null
   }
-  
+
   previewFillColor.value = null
-  
+
   if (!selectedElement.value || selectedElement.value.type !== 'shape') return
   if (!canvasService) return
-  
+
   // 恢复原始颜色
   canvasService.updateGraphicStyle(selectedElement.value.id, {
     ...selectedElement.value,
@@ -487,12 +487,12 @@ const updateFill = (color: string) => {
   previewFillColor.value = null // 清除预览
   if (selectedElement.value && selectedElement.value.type === 'shape') {
     const updates: { fillColor: string; strokeColor?: string } = { fillColor: color }
-    
+
     // 如果启用自动匹配，智能选择边框色
     if (isAutoMatchMode.value) {
       updates.strokeColor = getAutoMatchColor(color)
     }
-    
+
     elementsStore.updateShapeElementProperties(selectedElement.value.id, updates)
   }
   showFillPicker.value = false
@@ -535,12 +535,12 @@ const saveFillCustom = (event: Event) => {
 
   if (selectedElement.value && selectedElement.value.type === 'shape') {
     const updates: { fillColor: string; strokeColor?: string } = { fillColor: color }
-    
+
     // 如果启用自动匹配，智能选择边框色
     if (isAutoMatchMode.value) {
       updates.strokeColor = getAutoMatchColor(color)
     }
-    
+
     elementsStore.updateShapeElementProperties(selectedElement.value.id, updates)
   }
 }
@@ -557,44 +557,44 @@ const updateBorderWidth = (width: number) => {
 // 自动匹配边框颜色（白色配黑色边框，其他颜色跟随填充色）
 const autoMatchBorderColor = () => {
   if (!selectedElement.value || selectedElement.value.type !== 'shape') return
-  
+
   const fillColor = selectedElement.value.fillColor
   const autoColor = getAutoMatchColor(fillColor)
-  
+
   previewStrokeColor.value = null
-  
+
   // 启用自动匹配模式
   isAutoMatchMode.value = true
-  
+
   elementsStore.updateShapeElementProperties(selectedElement.value.id, {
     strokeColor: autoColor
   })
-  
+
   showBorderSettings.value = false
 }
 
 // 预览边框颜色（hover时实时更新图形 - 使用RAF节流）
 const handleBorderPreview = (color: string) => {
   previewStrokeColor.value = color
-  
+
   if (!selectedElement.value || selectedElement.value.type !== 'shape') return
   if (!canvasService) return
-  
+
   // 取消之前的RAF
   if (borderPreviewRafId !== null) {
     cancelAnimationFrame(borderPreviewRafId)
   }
-  
+
   // 使用RAF节流，避免频繁渲染
   borderPreviewRafId = requestAnimationFrame(() => {
     if (!selectedElement.value || selectedElement.value.type !== 'shape') return
     if (!canvasService) return
-    
+
     canvasService.updateGraphicStyle(selectedElement.value.id, {
       ...selectedElement.value,
       strokeColor: color
     })
-    
+
     borderPreviewRafId = null
   })
 }
@@ -606,12 +606,12 @@ const handleBorderPreviewEnd = () => {
     cancelAnimationFrame(borderPreviewRafId)
     borderPreviewRafId = null
   }
-  
+
   previewStrokeColor.value = null
-  
+
   if (!selectedElement.value || selectedElement.value.type !== 'shape') return
   if (!canvasService) return
-  
+
   // 恢复原始颜色
   canvasService.updateGraphicStyle(selectedElement.value.id, {
     ...selectedElement.value,
@@ -622,10 +622,10 @@ const handleBorderPreviewEnd = () => {
 // 更新边框颜色（点击确认）
 const updateBorderColor = (color: string) => {
   previewStrokeColor.value = null // 清除预览
-  
+
   // 手动选择边框色时退出自动匹配模式
   isAutoMatchMode.value = false
-  
+
   if (selectedElement.value && selectedElement.value.type === 'shape') {
     elementsStore.updateShapeElementProperties(selectedElement.value.id, {
       strokeColor: color
@@ -912,10 +912,6 @@ onUnmounted(() => {
   margin-bottom: 0px;
   pointer-events: none;
   z-index: 1002;
-}
-
-.custom-color-section {
-  display: none; /* 隐藏旧的自定义颜色区域 */
 }
 
 .color-input-wrapper {

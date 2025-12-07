@@ -49,6 +49,7 @@
           :stroke="element.strokeColor || '#000'"
           :stroke-width="0.5"
           opacity="0.7"
+          :transform="getElementTransform(element)"
         />
         
         <!-- 圆形元素 -->
@@ -61,6 +62,7 @@
           :stroke="element.strokeColor || '#000'"
           :stroke-width="0.5"
           opacity="0.7"
+          :transform="getElementTransform(element)"
         />
         
         <!-- 三角形元素 -->
@@ -71,6 +73,7 @@
           :stroke="element.strokeColor || '#000'"
           :stroke-width="0.5"
           opacity="0.7"
+          :transform="getElementTransform(element)"
         />
         
         <!-- 图片元素 -->
@@ -84,6 +87,7 @@
           stroke="#999"
           :stroke-width="0.5"
           opacity="0.7"
+          :transform="getElementTransform(element)"
         />
         
         <!-- 文本元素 -->
@@ -97,6 +101,7 @@
           stroke="#666"
           :stroke-width="0.5"
           opacity="0.7"
+          :transform="getElementTransform(element)"
         />
       </g>
       
@@ -265,6 +270,20 @@ const getTrianglePoints = (element: AnyElement) => {
   const h = el.height
   
   return `${x + w/2},${y} ${x + w},${y + h} ${x},${y + h}`
+}
+
+// 获取元素的 SVG transform 属性（应用旋转）
+const getElementTransform = (element: AnyElement) => {
+  if (!element.rotation) return ''
+  
+  // 计算旋转中心点（元素中心）
+  const centerX = element.x + element.width / 2
+  const centerY = element.y + element.height / 2
+  
+  // SVG 的 rotate 使用角度（不是弧度），需要转换
+  const degrees = (element.rotation * 180) / Math.PI
+  
+  return `rotate(${degrees} ${centerX} ${centerY})`
 }
 
 // 小地图坐标转世界坐标

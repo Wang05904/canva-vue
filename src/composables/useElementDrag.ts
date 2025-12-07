@@ -13,14 +13,16 @@ import { useSelectionStore } from '@/stores/selection'
 import type { GroupElement } from '@/cores/types/element'
 import { useDragState } from './useDragState'
 import { useAlignment } from './useAlignment'
+import { createBBoxGeometry } from './useAlignmentHelpers'
 import type { CanvasService } from '@/services/canvas/CanvasService'
 import { CoordinateTransform } from '@/cores/viewport/CoordinateTransform'
+import { performanceMonitor, MetricType } from '@/cores/monitoring'
 
 export function useElementDrag(elementId: string) {
   const elementsStore = useElementsStore()
   const selectionStore = useSelectionStore()
   const canvasService = inject<CanvasService>('canvasService')
-  const { startDrag: startGlobalDrag, updateDragOffset, endDrag: endGlobalDrag } = useDragState()
+  const { startDrag: startGlobalDrag, updateDragOffset, endDrag: endGlobalDrag, getDragState } = useDragState()
   const { checkAlignment, clearAlignment } = useAlignment()
 
   const isDragging = ref(false)
@@ -29,7 +31,7 @@ export function useElementDrag(elementId: string) {
   let animationFrameId: number | null = null
   let currentElement: HTMLElement | null = null
   let initialTransform = { x: 0, y: 0, rotation: 0 }
-  let initialBoundingBox: { x: number; y: number; width: number; height: number } | null = null
+  let initialBoundingBox: { x: number; y: number; width: number; height: number; rotation: number } | null = null
   let draggedIds: string[] = []
 
   /**
@@ -45,6 +47,17 @@ export function useElementDrag(elementId: string) {
     // 先记录拖拽起始位置和元素初始状态
     const element = elementsStore.getElementById(elementId)
     if (!element) return
+
+    // 检查是否已经在多选拖拽中（此时不应该启动元素自己的拖拽）
+    const dragState = getDragState().value
+    const isInMultiSelectDrag = dragState?.isDragging && 
+                                 dragState.elementIds.length > 1 &&
+                                 dragState.elementIds.includes(elementId)
+    
+    if (isInMultiSelectDrag) {
+      // 在多选拖拽中，阻止元素自己的拖拽逻辑，由 SelectionOverlay 统一处理
+      return
+    }
 
     initialTransform = {
       x: element.x,
@@ -88,22 +101,41 @@ export function useElementDrag(elementId: string) {
     const draggedElements = draggedIds.map(id => elementsStore.getElementById(id)).filter(el => el != null)
     initialBoundingBox = null
     if (draggedElements.length > 0) {
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
-      draggedElements.forEach(el => {
-        minX = Math.min(minX, el.x)
-        minY = Math.min(minY, el.y)
-        maxX = Math.max(maxX, el.x + el.width)
-        maxY = Math.max(maxY, el.y + el.height)
-      })
-      initialBoundingBox = {
-        x: minX,
-        y: minY,
-        width: maxX - minX,
-        height: maxY - minY
+      // 单个元素：保留旋转信息
+      if (draggedElements.length === 1) {
+        const el = draggedElements[0]
+        if (el) {
+          initialBoundingBox = {
+            x: el.x,
+            y: el.y,
+            width: el.width,
+            height: el.height,
+            rotation: el.rotation || 0
+          }
+        }
+      } else {
+        // 多个元素：计算整体AABB，旋转为0
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+        draggedElements.forEach(el => {
+          minX = Math.min(minX, el.x)
+          minY = Math.min(minY, el.y)
+          maxX = Math.max(maxX, el.x + el.width)
+          maxY = Math.max(maxY, el.y + el.height)
+        })
+        initialBoundingBox = {
+          x: minX,
+          y: minY,
+          width: maxX - minX,
+          height: maxY - minY,
+          rotation: 0
+        }
       }
     }
 
     // console.log('[对齐调试-DOM] 开始拖拽:', { elementId, draggedIds, initialBoundingBox })
+
+    // 监控拖拽性能
+    performanceMonitor.startTimer(`drag-${elementId}`)
 
     // 通知全局拖拽状态开始（传入初始边界框）
     isDragging.value = true
@@ -134,43 +166,31 @@ export function useElementDrag(elementId: string) {
     const viewport = canvasService!.getViewportService().getViewport()
     const { dx: worldDx, dy: worldDy } = CoordinateTransform.screenDeltaToWorldDelta(screenDx, screenDy, viewport)
 
-    totalOffset.value = { x: worldDx, y: worldDy }
-
-    // 立即更新全局拖拽偏移（世界坐标）
-    updateDragOffset({ x: worldDx, y: worldDy })
     // 1. 计算未吸附前的目标位置
-    let newX = initialTransform.x + worldDx
-    let newY = initialTransform.y + worldDy
+    let finalDx = worldDx
+    let finalDy = worldDy
 
     // 2. 计算吸附修正
     if (initialBoundingBox) {
-      const targetRect = {
+      const targetGeometry = createBBoxGeometry({
         x: initialBoundingBox.x + worldDx,
         y: initialBoundingBox.y + worldDy,
         width: initialBoundingBox.width,
         height: initialBoundingBox.height
-      }
+      }, initialBoundingBox.rotation)
 
-      const { dx: snapDx, dy: snapDy } = checkAlignment(targetRect, draggedIds)
-
-      if (snapDx !== 0 || snapDy !== 0) {
-        // console.log('[对齐调试-DOM] 检测到吸附:', { snapDx, snapDy })
-      }
-
-      // 应用吸附修正
-      newX = initialTransform.x + worldDx + snapDx
-      newY = initialTransform.y + worldDy + snapDy
-
-      // 更新总偏移量（包含吸附）
-      totalOffset.value = {
-        x: newX - initialTransform.x,
-        y: newY - initialTransform.y
-      }
-    } else {
-      totalOffset.value = { x: worldDx, y: worldDy }
+      const { dx: snapDx, dy: snapDy } = checkAlignment(targetGeometry, draggedIds)
+      finalDx += snapDx
+      finalDy += snapDy
     }
 
-    // 立即更新全局拖拽偏移（不等待 RAF）
+    // 更新总偏移量（包含吸附）
+    totalOffset.value = {
+      x: finalDx,
+      y: finalDy
+    }
+
+    // 立即更新全局拖拽偏移（包含吸附修正，RAF 之外同步更新）
     updateDragOffset(totalOffset.value)
 
     // 使用 RAF 节流
@@ -181,10 +201,6 @@ export function useElementDrag(elementId: string) {
     animationFrameId = requestAnimationFrame(() => {
       const element = elementsStore.getElementById(elementId)
       if (!element) return
-
-      // Calculate new world position
-      // const newX = initialTransform.x + totalOffset.value.x
-      // const newY = initialTransform.y + totalOffset.value.y
 
       // 直接操作 DOM，使用 translate3d 启用 GPU 加速
       // Images have transform-origin: center center, so we need to position at top-left
@@ -259,6 +275,11 @@ export function useElementDrag(elementId: string) {
     currentElement = null
     initialBoundingBox = null
     draggedIds = []
+
+    // 记录拖拽性能
+    performanceMonitor.endTimer(`drag-${elementId}`, MetricType.INTERACTION, {
+      hasMoved: Math.abs(totalOffset.value.x) > 0.5 || Math.abs(totalOffset.value.y) > 0.5
+    })
 
     // 结束全局拖拽状态
     endGlobalDrag()

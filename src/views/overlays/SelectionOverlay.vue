@@ -58,10 +58,12 @@ import { useCanvasStore } from '@/stores/canvas'
 import { useDragSync } from '@/composables/useDragSync'
 import { useDragState } from '@/composables/useDragState'
 import { useRotate } from '@/composables/useRotate'
+import { useGuidelinesStore } from '@/stores/guidelines'
 import { useResize } from '@/composables/useResize'
 import { CoordinateTransform } from '@/cores/viewport/CoordinateTransform'
 import type { CanvasService } from '@/services/canvas/CanvasService'
 import { useAlignment } from '@/composables/useAlignment'
+import { createBBoxGeometry } from '@/composables/useAlignmentHelpers'
 
 const selectionStore = useSelectionStore()
 const elementsStore = useElementsStore()
@@ -72,6 +74,7 @@ const canvasService = inject<CanvasService>('canvasService')
 const { syncDragPosition } = canvasService ? useDragSync(canvasService) : { syncDragPosition: () => {} }
 const { getDragState, startDrag: startGlobalDrag, updateDragOffset: updateGlobalDragOffset, endDrag: endGlobalDrag, startRotate: startGlobalRotate, endRotate: endGlobalRotate, getRotateState } = useDragState()
 const { updateElementRotation, applyRotationToStore, resetElementsToFinalRotation } = useRotate(canvasService || null)
+const guidelinesStore = useGuidelinesStore()
 const { updateElementsResize, applyResizeToStore, resetGraphicsAfterResize, updateSelectionBox } = useResize(canvasService || null)
 const { checkAlignment, clearAlignment } = useAlignment()
 
@@ -90,7 +93,7 @@ let animationFrameId: number | null = null
 const initialElementPositions = new Map<string, { x: number; y: number; width: number; height: number }>()
 
 // 使用 ref 缓存边界框，避免频繁计算
-const cachedBoundingBox = ref<{ x: number; y: number; width: number; height: number } | null>(null)
+const cachedBoundingBox = ref<{ x: number; y: number; width: number; height: number; rotation: number } | null>(null)
 
 /**
  * 将选中的元素ID展开：如果包含组合元素，则把其子元素一并返回
@@ -204,7 +207,10 @@ const calculateBoundingBox = () => {
     x: minX,
     y: minY,
     width: maxX - minX,
-    height: maxY - minY
+    height: maxY - minY,
+    rotation: selectedIds.value.length === 1 && selectedElements.length === 1 && selectedElements[0] && selectedElements[0].type !== 'group' 
+      ? (selectedElements[0].rotation || 0)
+      : 0  // 多选或组合时rotation为0
   }
 }
 
@@ -245,7 +251,8 @@ const worldBoundingBox = computed(() => {
           x: baseBox.x + dragState.offset.x,
           y: baseBox.y + dragState.offset.y,
           width: baseBox.width,
-          height: baseBox.height
+          height: baseBox.height,
+          rotation: 'rotation' in baseBox ? baseBox.rotation : 0
         }
       }
     }
@@ -266,6 +273,19 @@ const getSelectionRotation = () => {
     return el?.rotation || 0
   }
   return 0
+}
+
+// 旋转吸附阈值（弧度），约等于 4°
+const ROTATION_SNAP_THRESHOLD = Math.PI / 45
+
+// 将角度吸附到最接近的 90° 倍数（含 0°），仅在阈值内触发
+const snapRotation = (angleRad: number): number => {
+  const step = Math.PI / 2 // 90°
+  const nearest = Math.round(angleRad / step) * step
+  if (Math.abs(angleRad - nearest) <= ROTATION_SNAP_THRESHOLD) {
+    return nearest
+  }
+  return angleRad
 }
 // 转换为屏幕坐标的边界框（用于CSS渲染）
 const boundingBox = computed(() => {
@@ -348,14 +368,14 @@ const onDrag = (event: MouseEvent) => {
   let finalDy = worldDy
 
   if (cachedBoundingBox.value) {
-    const targetRect = {
+    const targetGeometry = createBBoxGeometry({
       x: cachedBoundingBox.value.x + worldDx,
       y: cachedBoundingBox.value.y + worldDy,
       width: cachedBoundingBox.value.width,
       height: cachedBoundingBox.value.height
-    }
+    }, cachedBoundingBox.value.rotation)
 
-    const { dx: snapDx, dy: snapDy } = checkAlignment(targetRect, selectedIds.value)
+    const { dx: snapDx, dy: snapDy } = checkAlignment(targetGeometry, selectedIds.value)
     finalDx += snapDx
     finalDy += snapDy
   }
@@ -671,7 +691,13 @@ const onRotate = (e: MouseEvent) => {
 
       // Get current rotation and apply the delta
       const currentRotation = getSelectionRotation()
-      const newRotation = currentRotation + rotationAngle.value
+      let newRotation = currentRotation + rotationAngle.value
+
+      // 旋转吸附：对齐模式下吸附到 0/90° 倍数
+      if (guidelinesStore.isSnapEnabled) {
+        newRotation = snapRotation(newRotation)
+        rotationAngle.value = newRotation - currentRotation
+      }
 
       // Apply transform with rotation (selection box is already positioned in screen coords)
       box.style.transform = `translate3d(${boundingBox.value.x}px, ${boundingBox.value.y}px, 0) rotate(${newRotation}rad)`
@@ -728,6 +754,9 @@ const stopRotate = () => {
     // 重新计算边界框
     cachedBoundingBox.value = calculateBoundingBox()
   }
+
+  // 结束旋转吸附辅助线
+  clearAlignment()
 
   endGlobalRotate()
   rotationAngle.value = 0

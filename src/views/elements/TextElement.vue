@@ -27,6 +27,7 @@ import { useElementsStore } from '@/stores/elements'
 import { useSelectionStore } from '@/stores/selection'
 import { useDragState } from '@/composables/useDragState'
 import { useAlignment } from '@/composables/useAlignment'
+import { createBBoxGeometry } from '@/composables/useAlignmentHelpers'
 import type { CanvasService } from '@/services/canvas/CanvasService'
 import { CoordinateTransform } from '@/cores/viewport/CoordinateTransform'
 
@@ -50,7 +51,7 @@ const dragStartPos = ref({ x: 0, y: 0 })
 const elementStartPos = ref({ x: 0, y: 0 })
 const elementRef = ref<HTMLElement | null>(null)
 let animationFrameId: number | null = null
-let initialBoundingBox: { x: number; y: number; width: number; height: number } | null = null
+let initialBoundingBox: { x: number; y: number; width: number; height: number; rotation: number } | null = null
 let draggedIds: string[] = []
 
 // 容器样式 - 使用 transform3d 启用 GPU 加速
@@ -95,6 +96,20 @@ const handleMouseDown = (e: MouseEvent) => {
   elementRef.value = e.currentTarget as HTMLElement
 
   const el = elementsStore.getElementById(props.element.id)
+  
+  // 检查是否已经在多选拖拽中（此时不应该启动元素自己的拖拽）
+  const dragState = getDragState().value
+  const isInMultiSelectDrag = dragState?.isDragging && 
+                               dragState.elementIds.length > 1 &&
+                               dragState.elementIds.includes(props.element.id)
+  
+  if (isInMultiSelectDrag) {
+    // 在多选拖拽中，阻止元素自己的拖拽逻辑，由 SelectionOverlay 统一处理
+    e.stopPropagation()
+    e.preventDefault()
+    return
+  }
+  
   // 如果是组合内子元素，点击时选中其父组合，并启动组合拖拽
   if (el && el.parentGroup) {
     // 阻止事件传播，防止触发画布点击事件
@@ -126,7 +141,8 @@ const handleMouseDown = (e: MouseEvent) => {
           x: minX,
           y: minY,
           width: maxX - minX,
-          height: maxY - minY
+          height: maxY - minY,
+          rotation: 0  // 组合元素rotation为0
         }
       }
       
@@ -158,7 +174,8 @@ const handleMouseDown = (e: MouseEvent) => {
     x: props.element.x,
     y: props.element.y,
     width: props.element.width,
-    height: props.element.height
+    height: props.element.height,
+    rotation: props.element.rotation || 0
   }
 
   document.addEventListener('mousemove', handleMouseMove)
@@ -191,30 +208,30 @@ const handleMouseMove = (e: MouseEvent) => {
 
   if (!isDragging.value) return
 
-  // 立即更新拖拽偏移（使用世界坐标）
-  updateDragOffset({ x: worldDx, y: worldDy })
+  // 计算吸附修正
+  let finalDx = worldDx
+  let finalDy = worldDy
+
+  if (initialBoundingBox) {
+    const targetGeometry = createBBoxGeometry({
+      x: initialBoundingBox.x + worldDx,
+      y: initialBoundingBox.y + worldDy,
+      width: initialBoundingBox.width,
+      height: initialBoundingBox.height
+    }, initialBoundingBox.rotation)
+
+    const { dx: snapDx, dy: snapDy } = checkAlignment(targetGeometry, draggedIds)
+    finalDx += snapDx
+    finalDy += snapDy
+  }
+
+  // 立即更新拖拽偏移（包含吸附修正，在 RAF 之外同步更新）
+  updateDragOffset({ x: finalDx, y: finalDy })
 
   // 使用 RAF 节流，避免频繁更新 DOM
   if (animationFrameId !== null) return
 
   animationFrameId = requestAnimationFrame(() => {
-    let finalDx = worldDx
-    let finalDy = worldDy
-
-    // 应用对齐吸附
-    if (initialBoundingBox) {
-      const targetRect = {
-        x: initialBoundingBox.x + worldDx,
-        y: initialBoundingBox.y + worldDy,
-        width: initialBoundingBox.width,
-        height: initialBoundingBox.height
-      }
-
-      const { dx: snapDx, dy: snapDy } = checkAlignment(targetRect, draggedIds)
-      finalDx += snapDx
-      finalDy += snapDy
-    }
-
     const newX = elementStartPos.value.x + finalDx
     const newY = elementStartPos.value.y + finalDy
 
@@ -246,10 +263,27 @@ const handleMouseUp = (e: MouseEvent) => {
     const viewport = canvasService!.getViewportService().getViewport()
     const { dx: worldDx, dy: worldDy } = CoordinateTransform.screenDeltaToWorldDelta(screenDx,screenDy,viewport)
 
-    // 只在拖拽结束时更新 store
+    // 应用对齐吸附修正
+    let finalDx = worldDx
+    let finalDy = worldDy
+    
+    if (initialBoundingBox) {
+      const targetGeometry = createBBoxGeometry({
+        x: initialBoundingBox.x + worldDx,
+        y: initialBoundingBox.y + worldDy,
+        width: initialBoundingBox.width,
+        height: initialBoundingBox.height
+      }, initialBoundingBox.rotation)
+
+      const { dx: snapDx, dy: snapDy } = checkAlignment(targetGeometry, draggedIds)
+      finalDx += snapDx
+      finalDy += snapDy
+    }
+
+    // 只在拖拽结束时更新 store（使用包含吸附修正的最终位置）
     elementsStore.updateTextElement(props.element.id, {
-      x: elementStartPos.value.x + worldDx,
-      y: elementStartPos.value.y + worldDy
+      x: elementStartPos.value.x + finalDx,
+      y: elementStartPos.value.y + finalDy
     })
     elementsStore.saveToLocal()
 
@@ -292,14 +326,14 @@ const handleGroupDragMove = (e: MouseEvent) => {
   let finalDy = worldDy
   
   if (initialBoundingBox) {
-    const targetRect = {
+    const targetGeometry = createBBoxGeometry({
       x: initialBoundingBox.x + worldDx,
       y: initialBoundingBox.y + worldDy,
       width: initialBoundingBox.width,
       height: initialBoundingBox.height
-    }
+    }, initialBoundingBox.rotation)
     
-    const { dx: snapDx, dy: snapDy } = checkAlignment(targetRect, draggedIds)
+    const { dx: snapDx, dy: snapDy } = checkAlignment(targetGeometry, draggedIds)
     finalDx += snapDx
     finalDy += snapDy
   }
@@ -378,14 +412,14 @@ const handleGroupDragUp = (e: MouseEvent) => {
     let finalDy = worldDy
     
     if (initialBoundingBox) {
-      const targetRect = {
+      const targetGeometry = createBBoxGeometry({
         x: initialBoundingBox.x + worldDx,
         y: initialBoundingBox.y + worldDy,
         width: initialBoundingBox.width,
         height: initialBoundingBox.height
-      }
+      }, initialBoundingBox.rotation)
       
-      const { dx: snapDx, dy: snapDy } = checkAlignment(targetRect, draggedIds)
+      const { dx: snapDx, dy: snapDy } = checkAlignment(targetGeometry, draggedIds)
       finalDx += snapDx
       finalDy += snapDy
     }

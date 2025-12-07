@@ -11,8 +11,8 @@
         <path 
           :d="`M ${gridSizes.small} 0 L 0 0 0 ${gridSizes.small}`" 
           fill="none" 
-          stroke="#F1F5F9" 
-          stroke-width="1"
+          :stroke="GRID_CONFIG.colors.small" 
+          :stroke-width="GRID_CONFIG.strokeWidth"
         />
       </pattern>
       
@@ -32,8 +32,8 @@
         <path 
           :d="`M ${gridSizes.large} 0 L 0 0 0 ${gridSizes.large}`" 
           fill="none" 
-          stroke="#E2E8F0" 
-          stroke-width="1"
+          :stroke="GRID_CONFIG.colors.large" 
+          :stroke-width="GRID_CONFIG.strokeWidth"
         />
       </pattern>
     </defs>
@@ -45,21 +45,22 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useCanvasStore } from '@/stores/canvas'
+import { GRID_CONFIG, CANVAS_CONFIG } from '@/cores/config/appConfig'
 
 const canvasStore = useCanvasStore()
 const viewport = computed(() => canvasStore.viewport)
 
 // 画布尺寸
 const canvasSize = computed(() => ({
-  width: canvasStore.width || 3000,
-  height: canvasStore.height || 3000
+  width: canvasStore.width || CANVAS_CONFIG.size.default,
+  height: canvasStore.height || CANVAS_CONFIG.size.default
 }))
 
 // 根据缩放级别自适应网格基础大小
 const getAdaptiveSize = (zoom: number) => {
-  if (zoom < 0.25) return { small: 80, large: 400 }
-  if (zoom < 0.5) return { small: 40, large: 200 }
-  return { small: 20, large: 100 }
+  if (zoom < GRID_CONFIG.zoomThresholds.verySmall) return GRID_CONFIG.sizes.verySmall
+  if (zoom < GRID_CONFIG.zoomThresholds.small) return GRID_CONFIG.sizes.small
+  return GRID_CONFIG.sizes.normal
 }
 
 // 计算网格大小（屏幕坐标）
@@ -75,8 +76,8 @@ const gridSizes = computed(() => {
 // 计算pattern的transform
 const transform = computed(() => {
   const { zoom, x, y } = viewport.value
-  const centerX = canvasSize.value.width / 2
-  const centerY = canvasSize.value.height / 2
+  const centerX = canvasSize.value.width / CANVAS_CONFIG.transform.divisionFactor
+  const centerY = canvasSize.value.height / CANVAS_CONFIG.transform.divisionFactor
   const gridSize = getAdaptiveSize(zoom).large * zoom
   
   const offsetX = (centerX - x * zoom) % gridSize
@@ -86,7 +87,7 @@ const transform = computed(() => {
 })
 
 // 是否显示小网格
-const showSmallGrid = computed(() => viewport.value.zoom >= 0.3)
+const showSmallGrid = computed(() => viewport.value.zoom >= GRID_CONFIG.zoomThresholds.showSmallGrid)
 </script>
 
 <style scoped>

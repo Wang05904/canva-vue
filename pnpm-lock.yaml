@@ -38,9 +38,6 @@ importers:
       pixi.js:
         specifier: ^8.14.3
         version: 8.14.3
-      stats.js:
-        specifier: ^0.17.0
-        version: 0.17.0
       vue:
         specifier: ^3.5.22
         version: 3.5.24(typescript@5.9.3)
@@ -1780,9 +1777,6 @@ packages:
   speakingurl@14.0.1:
     resolution: {integrity: sha512-1POYv7uv2gXoyGFpBCmpDVSNV74IfsWlDW216UPjbWufNf+bSU6GdbDsxdcxtfwb4xlI3yxzOTKClUosxARYrQ==}
     engines: {node: '>=0.10.0'}
-
-  stats.js@0.17.0:
-    resolution: {integrity: sha512-hNKz8phvYLPEcRkeG1rsGmV5ChMjKDAWU7/OJJdDErPBNChQXxCo3WZurGpnWc6gZhAzEPFad1aVgyOANH1sMw==}
 
   strip-json-comments@3.1.1:
     resolution: {integrity: sha512-6fPc+R4ihwqP6N/aIv2f1gMH8lOVtWQHoqC4yK6oSDVVocumAsfCqjkXnqiYMhmMwS/mEHLp7Vehlt3ql6lEig==}
@@ -3774,8 +3768,6 @@ snapshots:
   source-map-js@1.2.1: {}
 
   speakingurl@14.0.1: {}
-
-  stats.js@0.17.0: {}
 
   strip-json-comments@3.1.1: {}
 

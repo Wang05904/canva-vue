@@ -21,10 +21,6 @@ export const useCanvasStore = defineStore('canvas', {
       this.currentTool = tool
     },
 
-    setViewport(viewport: ViewportState) {
-      this.viewport = viewport
-    },
-
     updateViewport(partial: Partial<ViewportState>) {
       this.viewport = { ...this.viewport, ...partial }
     }

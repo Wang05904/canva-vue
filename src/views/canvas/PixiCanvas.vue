@@ -9,6 +9,9 @@ View层 - 画布容器组件
     <image-toolbar />
     <selection-overlay />
     <mini-map />
+    
+    <!-- 性能监控浮动面板 -->
+    <performance-panel ref="performancePanelRef" />
 
     <!-- 文本编辑工具栏 - 使用屏幕坐标，所以放在外面 -->
     <text-editor-toolbar
@@ -72,15 +75,31 @@ import ImageElement from '../../views/elements/ImageElement.vue'
 import TextElement from '../../views/elements/TextElement.vue'
 import TextEditor from '../../views/overlays/TextEditor.vue'
 import TextEditorToolbar from '../../views/ui/TextEditorToolbar.vue'
+import PerformancePanel from '../overlays/PerformancePanel.vue'
 import { useCanvas } from '@/composables/useCanvas'
 import { useElementsStore } from '@/stores/elements'
 import { useCanvasStore } from '@/stores/canvas'
+import { useGlobalKeyboard } from '@/composables/useGlobalKeyboard'
 import type { ImageElement as ImageElementType, TextElement as TextElementType } from '@/cores/types/element'
 
 const { container, canvasService } = useCanvas()
 const elementsStore = useElementsStore()
 const canvasStore = useCanvasStore()
+const performancePanelRef = ref<InstanceType<typeof PerformancePanel>>()
 const { viewport } = storeToRefs(canvasStore)
+
+// 鼠标位置跟踪（用于粘贴等操作的世界坐标计算）
+const mousePosition = ref({ x: 0, y: 0 })
+
+// 鼠标移动事件处理
+const handleMouseMove = (event: MouseEvent) => {
+  if (!container.value) return
+  const rect = container.value.getBoundingClientRect()
+  mousePosition.value = {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top
+  }
+}
 
 // 平移状态（根据当前工具判断）
 const isPanning = computed(() => canvasStore.currentTool === 'pan')
@@ -149,20 +168,21 @@ const handleTextDoubleClick = (elementId: string) => {
   editingTextId.value = elementId
 }
 
-// 监听Escape键退出编辑
-const handleKeyDown = (e: KeyboardEvent) => {
-  if (e.key === 'Escape' && editingTextId.value) {
-    editingTextId.value = null
-  }
-}
+// 注册全局键盘快捷键
+const globalKeyboard = useGlobalKeyboard({
+  canvasService,
+  mousePosition,
+  editingTextId,
+  performancePanelToggle: () => performancePanelRef.value?.toggle()
+})
 
 onMounted(() => {
-  // 监听键盘事件
-  document.addEventListener('keydown', handleKeyDown)
+  globalKeyboard.registerAllShortcuts()
+  window.addEventListener('mousemove', handleMouseMove)
 })
 
 onUnmounted(() => {
-  document.removeEventListener('keydown', handleKeyDown)
+  window.removeEventListener('mousemove', handleMouseMove)
 })
 </script>
 

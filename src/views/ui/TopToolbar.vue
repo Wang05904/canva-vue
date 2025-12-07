@@ -193,6 +193,7 @@ import { historyService } from '@/services'
 import { useElementsStore } from '@/stores/elements'
 import { useSelectionStore } from '@/stores/selection'
 import type { CanvasService } from '@/services/canvas/CanvasService'
+import { UPLOAD_CONFIG, UI_CONFIG, VIEWPORT_CONFIG } from '@/cores/config/appConfig'
 
 const canvasStore = useCanvasStore()
 const guidelinesStore = useGuidelinesStore()
@@ -207,17 +208,17 @@ const toggleSnap = () => {
   guidelinesStore.toggleSnap()
   Message.info({
     content: guidelinesStore.isSnapEnabled ? '已启用对齐吸附' : '已关闭对齐吸附',
-    duration: 1500
+    duration: UI_CONFIG.message.defaultDuration
   })
 }
 
 // 注入 canvasService
 const canvasService = inject<CanvasService>('canvasService')
 
-// 配置常量
-const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
-const MAX_DIMENSION = 4096 // 最大宽高限制
+// 配置常量（使用配置中心）
+const MAX_FILE_SIZE = UPLOAD_CONFIG.maxFileSize
+const ALLOWED_TYPES = UPLOAD_CONFIG.allowedTypes
+const MAX_DIMENSION = UPLOAD_CONFIG.maxDimension
 
 // 缩放相关
 const zoomPercent = computed(() => {
@@ -229,7 +230,7 @@ const handleZoomIn = () => {
   const viewportService = canvasService.getViewportService()
   const currentZoom = viewportService.getViewport().zoom
   const config = viewportService.getConfig()
-  const newZoom = Math.min(currentZoom * 1.2, config.maxZoom)
+  const newZoom = Math.min(currentZoom * VIEWPORT_CONFIG.zoomFactor.in, config.maxZoom)
   viewportService.setZoom(newZoom)
   canvasService.getRenderService().updateViewportTransform()
   canvasStore.updateViewport(viewportService.getViewport())
@@ -240,7 +241,7 @@ const handleZoomOut = () => {
   const viewportService = canvasService.getViewportService()
   const currentZoom = viewportService.getViewport().zoom
   const config = viewportService.getConfig()
-  const newZoom = Math.max(currentZoom / 1.2, config.minZoom)
+  const newZoom = Math.max(currentZoom / VIEWPORT_CONFIG.zoomFactor.in, config.minZoom)
   viewportService.setZoom(newZoom)
   canvasService.getRenderService().updateViewportTransform()
   canvasStore.updateViewport(viewportService.getViewport())
@@ -275,7 +276,7 @@ const handleFitToView = () => {
     y: minY,
     width: maxX - minX,
     height: maxY - minY
-  }, 50)
+  }, VIEWPORT_CONFIG.fitToView.defaultPadding)
   canvasService.getRenderService().updateViewportTransform()
   canvasStore.updateViewport(viewportService.getViewport())
 }
@@ -374,7 +375,7 @@ const handleFileChange = async (event: Event) => {
   if (!file) return
 
   // 1. 验证文件类型
-  if (!ALLOWED_TYPES.includes(file.type)) {
+  if (!ALLOWED_TYPES.includes(file.type as typeof ALLOWED_TYPES[number])) {
     Message.error({
       content: '不支持的图片格式！支持的格式：JPEG, PNG, GIF, WebP, SVG',
       duration: 3000
