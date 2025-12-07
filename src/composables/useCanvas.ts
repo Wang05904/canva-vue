@@ -8,8 +8,6 @@ import { CanvasService } from '@/services/canvas/CanvasService'
 import { useCanvasStore } from '@/stores/canvas'
 import { useElementsStore } from '@/stores/elements'
 import { useSelectionStore } from '@/stores/selection'
-import { CoordinateTransform } from '@/cores/viewport/CoordinateTransform'
-import { GroupService } from '@/services'
 import { useElementCreate } from './useElementsCreate'
 import type { ToolType } from '@/services/canvas/ToolService'
 
@@ -20,9 +18,6 @@ export function useCanvas() {
   const elementsStore = useElementsStore()
   const selectionStore = useSelectionStore()
   const { createElement } = useElementCreate()
-
-  // 鼠标位置跟踪
-  const mousePosition = ref({ x: 0, y: 0 })
 
   /**
    * 初始化画布
@@ -137,84 +132,12 @@ export function useCanvas() {
     })
   }
 
-  /** 鼠标移动事件处理 */
-  const handleMouseMove = (event: MouseEvent) => {
-    if (!container.value) return
-
-    // 获取容器的位置
-    const rect = container.value.getBoundingClientRect()
-
-    // 计算鼠标在画布内的相对位置
-    mousePosition.value = {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top
-    }
-  }
-
-  // 分组服务（用于处理组合元素删除等操作）
-  const groupService = new GroupService()
-
-  /** 键盘事件处理 */
-  const handleKeyDown = (event: KeyboardEvent) => {
-    // 处理 Ctrl+C 复制
-    if ((event.ctrlKey || event.metaKey) && event.key === 'c') {
-      event.preventDefault()
-      elementsStore.copySelectedElements()
-      console.log('复制选中元素')
-    }
-
-    // 处理 Ctrl+V 粘贴
-    if ((event.ctrlKey || event.metaKey) && event.key === 'v') {
-      event.preventDefault()
-      // 将屏幕坐标转换为世界坐标
-      const worldPosition = CoordinateTransform.screenToWorld(
-        mousePosition.value.x,
-        mousePosition.value.y,
-        canvasStore.viewport,
-        canvasStore.width || 800,
-        canvasStore.height || 600
-      )
-      // 传递世界坐标给粘贴方法
-      elementsStore.pasteElements(worldPosition)
-      console.log('粘贴元素到位置:', worldPosition)
-    }
-
-    // 处理 Delete/Backspace 删除
-    if (event.key === 'Delete' || event.key === 'Backspace') {
-      event.preventDefault()
-      const selectedIds = selectionStore.selectedIds
-      if (selectedIds.length > 0) {
-        // 如果选中的是组合元素，则删除组合及其子元素
-        groupService.deleteGroups(selectedIds)
-
-        // 其余非组合元素正常删除
-        const remainingIds = selectedIds.filter(id => {
-          const el = elementsStore.getElementById(id)
-          return !el || el.type !== 'group'
-        })
-        if (remainingIds.length) {
-          elementsStore.removeElements(remainingIds)
-        }
-
-        console.log('删除选中元素:', selectedIds)
-      }
-    }
-  }
-
   onMounted(() => {
     initialize()
-    // 添加键盘事件监听
-    window.addEventListener('keydown', handleKeyDown)
-    // 添加鼠标移动事件监听
-    window.addEventListener('mousemove', handleMouseMove)
   })
 
   onUnmounted(() => {
     canvasService.destroy()
-    // 移除键盘事件监听
-    window.removeEventListener('keydown', handleKeyDown)
-    // 移除鼠标移动事件监听
-    window.removeEventListener('mousemove', handleMouseMove)
   })
 
   return {

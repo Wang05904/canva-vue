@@ -100,17 +100,6 @@ export class EventService {
   }
 
   /**
-   * 将屏幕坐标转换为世界坐标
-   * 如果没有视口服务，直接返回屏幕坐标（向后兼容）
-   */
-  screenToWorld(screenX: number, screenY: number): { x: number; y: number } {
-    if (!this.viewportService) {
-      return { x: screenX, y: screenY }
-    }
-    return this.viewportService.screenToWorld(screenX, screenY)
-  }
-
-  /**
    * 绑定鼠标事件（点击、移动等）
    */
   bindStageEvents(): void {
@@ -144,7 +133,8 @@ export class EventService {
       : undefined
 
     // 转换屏幕坐标为世界坐标
-    const worldPos = this.screenToWorld(event.global.x, event.global.y)
+    if (!this.viewportService) return
+    const worldPos = this.viewportService.screenToWorld(event.global.x, event.global.y)
 
     if (elementId) {
       // 点击到元素：开始拖拽
@@ -284,7 +274,8 @@ export class EventService {
    * 统一处理鼠标移动事件
    */
   private handlePointerMove(event: FederatedPointerEvent): void {
-    const worldPos = this.screenToWorld(event.global.x, event.global.y)
+    if (!this.viewportService) return
+    const worldPos = this.viewportService.screenToWorld(event.global.x, event.global.y)
 
     // 处理拖拽
     if (this.isDragging && this.dragTargetId) {
@@ -410,7 +401,8 @@ export class EventService {
    * 统一处理鼠标抬起事件
    */
   private handlePointerUp(event: FederatedPointerEvent): void {
-    const worldPos = this.screenToWorld(event.global.x, event.global.y)
+    if (!this.viewportService) return
+    const worldPos = this.viewportService.screenToWorld(event.global.x, event.global.y)
 
     // 处理拖拽结束
     if (this.isDragging && this.dragTargetId) {

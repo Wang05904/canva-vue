@@ -21,9 +21,6 @@ export class ViewportService {
   private viewportWidth: number = 0
   private viewportHeight: number = 0
 
-  // 动画相关
-  private animationId: number | null = null
-
   constructor(config?: Partial<ViewportConfig>) {
     // 默认配置
     this.config = {
@@ -62,13 +59,6 @@ export class ViewportService {
    */
   getConfig(): Readonly<ViewportConfig> {
     return { ...this.config }
-  }
-
-  /**
-   * 更新配置
-   */
-  updateConfig(config: Partial<ViewportConfig>): void {
-    this.config = { ...this.config, ...config }
   }
 
   /**
@@ -143,76 +133,6 @@ export class ViewportService {
   }
 
   /**
-   * 缩放到指定级别（带动画）
-   */
-  zoomTo(zoom: number, duration: number = VIEWPORT_CONFIG.animation.defaultDuration, centerX?: number, centerY?: number): Promise<void> {
-    return new Promise(resolve => {
-      const startZoom = this.viewport.zoom
-      const startTime = Date.now()
-
-      const animate = () => {
-        const elapsed = Date.now() - startTime
-        const progress = Math.min(elapsed / duration, 1)
-
-        // 使用缓动函数
-        const eased = this.easeInOutCubic(progress)
-        const currentZoom = startZoom + (zoom - startZoom) * eased
-
-        this.setZoom(currentZoom, centerX, centerY)
-
-        if (progress < 1) {
-          this.animationId = requestAnimationFrame(animate)
-        } else {
-          this.animationId = null
-          resolve()
-        }
-      }
-
-      // 取消之前的动画
-      if (this.animationId !== null) {
-        cancelAnimationFrame(this.animationId)
-      }
-
-      animate()
-    })
-  }
-
-  /**
-   * 平移到指定位置（带动画）
-   */
-  panTo(x: number, y: number, duration: number = VIEWPORT_CONFIG.animation.defaultDuration): Promise<void> {
-    return new Promise(resolve => {
-      const startX = this.viewport.x
-      const startY = this.viewport.y
-      const startTime = Date.now()
-
-      const animate = () => {
-        const elapsed = Date.now() - startTime
-        const progress = Math.min(elapsed / duration, 1)
-
-        const eased = this.easeInOutCubic(progress)
-        const currentX = startX + (x - startX) * eased
-        const currentY = startY + (y - startY) * eased
-
-        this.setPosition(currentX, currentY)
-
-        if (progress < 1) {
-          this.animationId = requestAnimationFrame(animate)
-        } else {
-          this.animationId = null
-          resolve()
-        }
-      }
-
-      if (this.animationId !== null) {
-        cancelAnimationFrame(this.animationId)
-      }
-
-      animate()
-    })
-  }
-
-  /**
    * 适应内容到视口（Fit to View）
    */
   fitToView(contentBounds: Rectangle, padding: number = VIEWPORT_CONFIG.fitToView.defaultPadding): void {
@@ -234,15 +154,6 @@ export class ViewportService {
     this.viewport.zoom = zoom
     this.viewport.x = centerX
     this.viewport.y = centerY
-  }
-
-  /**
-   * 重置视口到初始状态
-   */
-  reset(): void {
-    this.viewport.x = 0
-    this.viewport.y = 0
-    this.viewport.zoom = this.config.defaultZoom
   }
 
   /**
@@ -280,32 +191,5 @@ export class ViewportService {
       this.viewportWidth,
       this.viewportHeight
     )
-  }
-
-  /**
-   * 判断元素是否在可见区域内
-   */
-  isElementVisible(x: number, y: number, width: number, height: number): boolean {
-    const visibleBounds = this.getVisibleBounds()
-    return CoordinateTransform.isRectVisible(x, y, width, height, visibleBounds)
-  }
-
-  /**
-   * 缓动函数
-   */
-  private easeInOutCubic(t: number): number {
-    const power = VIEWPORT_CONFIG.animation.easingPower
-    return t < 0.5 ? Math.pow(2, power - 1) * Math.pow(t, power) : 1 - Math.pow(-2 * t + 2, power) / 2
-  }
-
-  /**
-   * 清理资源
-   */
-  destroy(): void {
-
-    if (this.animationId !== null) {
-      cancelAnimationFrame(this.animationId)
-      this.animationId = null
-    }
   }
 }

@@ -28,7 +28,7 @@ export class PerformanceMonitor {
             slowThreshold: 100,
             maxMetrics: 1000
         }
-        this.collector = new MetricsCollector(this.config.maxMetrics)
+        this.collector = new MetricsCollector(this.config.maxMetrics, false)
     }
 
     /**
