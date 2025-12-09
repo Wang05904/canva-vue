@@ -51,16 +51,17 @@ const element = computed(() => {
 const editorStyle = computed(() => {
   if (!element.value) return {}
   
+  // 将弧度转换为角度
+  const rotationRad = element.value.rotation || 0
+  
   return {
     position: 'absolute' as const,
-    left: `${element.value.x}px`,
-    top: `${element.value.y}px`,
-    minWidth: `${element.value.width}px`,
-    maxWidth: '400px',
-    minHeight: `${element.value.height}px`,
-    height: 'auto',
-    transform: `rotate(${element.value.rotation || 0}deg)`,
-    transformOrigin: 'top left',
+    left: '0',
+    top: '0',
+    width: `${element.value.width}px`,
+    height: `${element.value.height}px`,
+    transform: `translate3d(${element.value.x}px, ${element.value.y}px, 0) rotate(${rotationRad}rad)`,
+    transformOrigin: 'center center',
     zIndex: 10000 // 确保在文本元素上面
   }
 })
@@ -79,19 +80,41 @@ watch(
           // 获取编辑器实际尺寸
           const editorElement = editor.value?.view.dom as HTMLElement
           if (editorElement) {
-            const actualHeight = editorElement.scrollHeight
-            const actualWidth = editorElement.scrollWidth
-            const minHeight = 50
-            const minWidth = 150
-            const maxWidth = 800
+            const overlay = editorElement.closest('.text-editor-overlay') as HTMLElement
+            if (overlay) {
+              // 保存原始样式
+              const originalWidth = overlay.style.width
+              const originalHeight = overlay.style.height
+              
+              // 临时设置 width 为 auto 以获取内容宽度，但保持 height 固定避免影响测量
+              overlay.style.width = 'auto'
+              overlay.style.height = 'auto'
+              
+              // 强制重新布局
+              void overlay.offsetHeight
+              
+              // 使用 scrollHeight/scrollWidth 获取内容实际尺寸
+              const actualHeight = editorElement.scrollHeight
+              const actualWidth = editorElement.scrollWidth
+              
+              // 恢复原始样式
+              overlay.style.width = originalWidth
+              overlay.style.height = originalHeight
+              
+              const minHeight = 50
+              const minWidth = 150
+              const maxWidth = 800
+              // 增加边距补偿（padding 8px * 2 + border 2px * 2 + 额外空间）
+              const paddingCompensation = 24
 
-            elementsStore.updateTextElement(element.value.id, {
-              content: text,
-              htmlContent: html,
-              // 自动更新高度和宽度以适应内容
-              height: Math.max(actualHeight + 16, minHeight),
-              width: Math.min(Math.max(actualWidth + 16, minWidth), maxWidth)
-            })
+              elementsStore.updateTextElement(element.value.id, {
+                content: text,
+                htmlContent: html,
+                // 自动更新高度和宽度以适应内容
+                height: Math.max(actualHeight + paddingCompensation, minHeight),
+                width: Math.min(Math.max(actualWidth + paddingCompensation, minWidth), maxWidth)
+              })
+            }
           } else {
             elementsStore.updateTextElement(element.value.id, {
               content: text,

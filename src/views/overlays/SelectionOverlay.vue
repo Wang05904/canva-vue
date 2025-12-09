@@ -7,9 +7,9 @@
 -->
 <template>
   <div class="selection-overlay">
-    <!-- 单选边框 -->
+    <!-- 单选边框 - 编辑时隐藏 -->
     <div
-      v-if="selectedIds.length === 1 && boundingBox"
+      v-if="selectedIds.length === 1 && boundingBox && !isEditingText"
       ref="singleBoxRef"
       class="selection-box single"
       :style="{
@@ -101,8 +101,13 @@ const selectionStore = useSelectionStore()
 const elementsStore = useElementsStore()
 const canvasStore = useCanvasStore()
 
-// 注入 canvasService
+// 注入 canvasService 和编辑状态
 const canvasService = inject<CanvasService>('canvasService')
+const editingTextId = inject<{ value: string | null }>('editingTextId', { value: null })
+
+// 判断是否正在编辑文本
+const isEditingText = computed(() => !!editingTextId.value)
+
 const { syncDragPosition } = canvasService ? useDragSync(canvasService) : { syncDragPosition: () => {} }
 const { getDragState, startDrag: startGlobalDrag, updateDragOffset: updateGlobalDragOffset, endDrag: endGlobalDrag, startRotate: startGlobalRotate, endRotate: endGlobalRotate, getRotateState } = useDragState()
 const { updateElementRotation, applyRotationToStore, resetElementsToFinalRotation } = useRotate(canvasService || null)

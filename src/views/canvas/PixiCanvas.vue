@@ -110,6 +110,9 @@ provide('canvasService', canvasService)
 // 当前编辑的文本元素ID
 const editingTextId = ref<string | null>(null)
 
+// 提供编辑状态给子组件
+provide('editingTextId', editingTextId)
+
 // TextEditor 组件引用
 const textEditorRef = ref<InstanceType<typeof TextEditor> | null>(null)
 

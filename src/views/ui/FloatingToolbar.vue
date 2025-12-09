@@ -368,41 +368,91 @@ const toolbarStyle = computed(() => {
   const canvasWidth = canvasStore.width
   const canvasHeight = canvasStore.height
 
-  // 将元素的世界坐标转换为屏幕坐标
-  const topLeft = CoordinateTransform.worldToScreen(
-    element.x,
-    element.y,
-    viewport,
-    canvasWidth,
-    canvasHeight
+  // 考虑旋转：先计算元素旋转后的4个顶点（世界坐标）
+  const rotation = element.rotation || 0
+  const worldCorners = [
+    { x: element.x, y: element.y },
+    { x: element.x + element.width, y: element.y },
+    { x: element.x + element.width, y: element.y + element.height },
+    { x: element.x, y: element.y + element.height }
+  ]
+
+  // 如果有旋转，计算旋转后的顶点
+  if (rotation !== 0) {
+    const centerX = element.x + element.width / 2
+    const centerY = element.y + element.height / 2
+    const cos = Math.cos(rotation)
+    const sin = Math.sin(rotation)
+
+    worldCorners.forEach((corner, i) => {
+      const dx = corner.x - centerX
+      const dy = corner.y - centerY
+      worldCorners[i] = {
+        x: centerX + dx * cos - dy * sin,
+        y: centerY + dx * sin + dy * cos
+      }
+    })
+  }
+
+  // 将世界坐标的顶点转换为屏幕坐标
+  const screenCorners = worldCorners.map(corner =>
+    CoordinateTransform.worldToScreen(corner.x, corner.y, viewport, canvasWidth, canvasHeight)
   )
 
-  const bottomRight = CoordinateTransform.worldToScreen(
-    element.x + element.width,
-    element.y + element.height,
-    viewport,
-    canvasWidth,
-    canvasHeight
-  )
+  // 计算屏幕坐标下的AABB（轴对齐边界框）
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  screenCorners.forEach(corner => {
+    minX = Math.min(minX, corner.x)
+    minY = Math.min(minY, corner.y)
+    maxX = Math.max(maxX, corner.x)
+    maxY = Math.max(maxY, corner.y)
+  })
 
-  const screenWidth = bottomRight.x - topLeft.x
-  const screenCenterX = topLeft.x + screenWidth / 2
+  const screenCenterX = (minX + maxX) / 2
+  const screenTop = minY
+  const screenBottom = maxY
 
   const toolbarHeight = 44
+  const toolbarWidth = 240 // 工具栏大致宽度
   const padding = 12
   const rotateHandleOffset = 25 // 旋转按钮在元素底部下方的距离
   const topThreshold = toolbarHeight + padding + 20 // 顶部安全距离
+  const bottomThreshold = window.innerHeight - (toolbarHeight + padding + 20) // 底部安全距离
 
-  // 判断元素是否在画布顶部附近
-  const isNearTop = topLeft.y < topThreshold
+  // 判断元素是否在画布顶部或底部附近
+  const isNearTop = screenTop < topThreshold
+  const isNearBottom = screenBottom > bottomThreshold
 
-  // 如果元素在顶部，工具栏显示在下方（需要避开旋转按钮）；否则显示在上方
-  const topPosition = isNearTop
-    ? bottomRight.y + rotateHandleOffset + padding + 8 // 旋转按钮下方额外留8px间距
-    : topLeft.y - toolbarHeight - padding
+  // 优先显示在上方，如果顶部空间不够则显示在下方（避开旋转按钮）
+  let topPosition: number
+  if (isNearTop) {
+    // 元素在顶部，工具栏显示在下方（需要避开旋转按钮）
+    topPosition = screenBottom + rotateHandleOffset + padding + 8
+  } else if (isNearBottom) {
+    // 元素在底部，工具栏显示在上方
+    topPosition = screenTop - toolbarHeight - padding
+  } else {
+    // 正常情况，工具栏显示在上方
+    topPosition = screenTop - toolbarHeight - padding
+  }
+
+  // 确保工具栏不超出屏幕边界
+  topPosition = Math.max(padding, Math.min(topPosition, window.innerHeight - toolbarHeight - padding))
+
+  // 计算水平位置，确保不超出屏幕
+  let leftPosition = screenCenterX
+  const halfToolbarWidth = toolbarWidth / 2
+  
+  if (leftPosition - halfToolbarWidth < padding) {
+    // 左侧溢出
+    leftPosition = halfToolbarWidth + padding
+  } else if (leftPosition + halfToolbarWidth > window.innerWidth - padding) {
+    // 右侧溢出
+    leftPosition = window.innerWidth - halfToolbarWidth - padding
+  }
 
   return {
-    left: `${screenCenterX}px`,
+    left: `${leftPosition}px`,
     top: `${topPosition}px`,
     transform: 'translateX(-50%)'
   }
