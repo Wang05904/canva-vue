@@ -47,6 +47,10 @@ export const useElementsStore = defineStore('elements', {
   actions: {
     /** 记录当前快照 */
     recordSnapshot() {
+      // 批处理中跳过，由 endBatch 统一记录
+      const history = useHistoryStore()
+      if (history.batchDepth > 0) return
+
       // 总是记录最新状态，但不立即深克隆
       _pendingSnapshot = this.elements.slice()  // 浅拷贝即可等待执行
 
@@ -94,6 +98,10 @@ export const useElementsStore = defineStore('elements', {
 
     /** 保存到 LocalStorage */
     saveToLocal() {
+      // 批处理中跳过，由 endBatch 统一保存
+      const history = useHistoryStore()
+      if (history.batchDepth > 0) return
+
       if (_saveTimer) cancelAnimationFrame(_saveTimer)
 
       _saveTimer = requestAnimationFrame(() => {
@@ -266,6 +274,12 @@ export const useElementsStore = defineStore('elements', {
     endBatch() {
       const history = useHistoryStore()
       history.endBatch()
+      
+      // 批处理结束后统一记录快照和保存
+      if (history.batchDepth === 0) {
+        this.recordSnapshot()
+        this.saveToLocal()
+      }
     },
 
     /**
@@ -388,6 +402,8 @@ export const useElementsStore = defineStore('elements', {
 
       // 创建新数组引用，触发 watch
       this.elements = [...this.elements]
+      
+      // 批处理中不调用，由 endBatch 统一处理
       this.recordSnapshot()
       this.saveToLocal()
     },

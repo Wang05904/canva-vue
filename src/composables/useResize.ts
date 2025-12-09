@@ -1,6 +1,7 @@
 import { useElementsStore } from '@/stores/elements'
 import { useCanvasStore } from '@/stores/canvas'
 import { CoordinateTransform } from '@/cores/viewport/CoordinateTransform'
+import { calculateBoundingBox } from '@/cores/utils/boundingBox'
 import type { CanvasService } from '@/services/canvas/CanvasService'
 import type { GroupElement } from '@/cores/types/element'
 
@@ -117,10 +118,12 @@ export function useResize(canvasService: CanvasService | null | undefined) {
 
     // Expand groups: selected groups and their children participate in scaling
     const targetIds = new Set<string>()
+    const groupIds = new Set<string>()
     selectedIds.forEach(id => {
       const el = elementsStore.getElementById(id)
       if (!el) return
       if (el.type === 'group' && 'children' in el && Array.isArray(el.children)) {
+        groupIds.add(id) // 记录组合元素ID
         el.children.forEach(childId => targetIds.add(childId))
       }else if (el.type != 'group') {
         // If the element is a child of a group, include the parent group as well
@@ -188,6 +191,30 @@ export function useResize(canvasService: CanvasService | null | undefined) {
       el.y = y
       el.width = newWidth
       el.height = newHeight
+    })
+
+    // 更新组合元素的边界框
+    groupIds.forEach(groupId => {
+      const group = elementsStore.getElementById(groupId)
+      if (!group || group.type !== 'group') return
+
+      // 重新计算组合的边界框
+      const children = group.children
+        .map(id => elementsStore.getElementById(id))
+        .filter((el): el is import('@/cores/types/element').AnyElement => !!el)
+
+      if (!children.length) return
+
+      const bbox = calculateBoundingBox(children)
+      if (!bbox) return
+
+      // 更新组合元素的位置和尺寸
+      elementsStore.updateElements([groupId], (el) => {
+        el.x = bbox.x
+        el.y = bbox.y
+        el.width = bbox.width
+        el.height = bbox.height
+      })
     })
   }
 

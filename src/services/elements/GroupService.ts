@@ -12,6 +12,7 @@
  */
 import { useElementsStore } from '@/stores/elements'
 import { useSelectionStore } from '@/stores/selection'
+import { calculateBoundingBox } from '@/cores/utils/boundingBox'
 import type { AnyElement, GroupElement } from '@/cores/types/element'
 
 export class GroupService {
@@ -19,67 +20,6 @@ export class GroupService {
   private selectionStore = useSelectionStore()
 
   constructor() {}
-
-  /**
-   * 根据一组元素ID计算包围盒
-   */
-  private calculateBoundingBox(ids: string[]): { x: number; y: number; width: number; height: number } | null {
-    if (!ids.length) return null
-
-    const elements: AnyElement[] = ids
-      .map(id => this.elementsStore.getElementById(id))
-      .filter((el): el is AnyElement => !!el)
-
-    if (!elements.length) return null
-
-    let minX = Infinity
-    let minY = Infinity
-    let maxX = -Infinity
-    let maxY = -Infinity
-
-    elements.forEach(el => {
-      const rotation = el.rotation || 0
-      
-      if (rotation === 0) {
-        // 未旋转，直接使用轴对齐边界框
-        minX = Math.min(minX, el.x)
-        minY = Math.min(minY, el.y)
-        maxX = Math.max(maxX, el.x + el.width)
-        maxY = Math.max(maxY, el.y + el.height)
-      } else {
-        // 已旋转，计算旋转后的四个角点，然后求其外包围盒
-        const centerX = el.x + el.width / 2
-        const centerY = el.y + el.height / 2
-        const cos = Math.cos(rotation)
-        const sin = Math.sin(rotation)
-        
-        // 四个角点相对于中心的坐标
-        const corners = [
-          { x: -el.width / 2, y: -el.height / 2 },
-          { x: el.width / 2, y: -el.height / 2 },
-          { x: el.width / 2, y: el.height / 2 },
-          { x: -el.width / 2, y: el.height / 2 }
-        ]
-        
-        // 旋转并转换到世界坐标，求 AABB
-        corners.forEach(corner => {
-          const worldX = centerX + corner.x * cos - corner.y * sin
-          const worldY = centerY + corner.x * sin + corner.y * cos
-          minX = Math.min(minX, worldX)
-          minY = Math.min(minY, worldY)
-          maxX = Math.max(maxX, worldX)
-          maxY = Math.max(maxY, worldY)
-        })
-      }
-    })
-
-    return {
-      x: minX,
-      y: minY,
-      width: maxX - minX,
-      height: maxY - minY
-    }
-  }
 
   /**
    * 创建组合元素
@@ -90,7 +30,11 @@ export class GroupService {
     const ids = Array.from(new Set(elementIds)).filter(Boolean)
     if (ids.length < 2) return null
 
-    const bbox = this.calculateBoundingBox(ids)
+    const elements = ids
+      .map(id => this.elementsStore.getElementById(id))
+      .filter((el): el is AnyElement => !!el)
+
+    const bbox = calculateBoundingBox(elements)
     if (!bbox) return null
 
     // 开启批处理，避免多次历史记录
@@ -118,9 +62,6 @@ export class GroupService {
 
       // 3. 选中新建的组合元素
       this.selectionStore.selectElement(groupId)
-
-      // 4. 持久化
-      this.elementsStore.saveToLocal()
 
       return groupId
     } finally {
@@ -156,9 +97,6 @@ export class GroupService {
 
       // 3. 更新选区为子元素
       this.selectionStore.selectedIds = childrenIds
-
-      // 4. 持久化
-      this.elementsStore.saveToLocal()
 
       return childrenIds
     } finally {
